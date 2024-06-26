@@ -1,10 +1,14 @@
 import logging
+import asyncio
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, \
     CallbackQueryHandler
 from src.datamanagement.database import DbManager as db
+from src.utils import text
 
 TOKEN_PATH = 'config/token.txt'
+FIELDS_PATH = 'config/fields.txt'
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -13,6 +17,9 @@ logging.basicConfig(
 
 search_data = {}
 SEARCH_LIMIT = 25
+fields = {}
+
+htmlLock = asyncio.Lock()
 
 
 def reset_search(id):
@@ -148,6 +155,31 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
     )
 
 
+async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if len(context.args) == 0:
+        return
+
+    keyword = ''.join(context.args).lower()
+    rows = db.get_pl_by_name(keyword)
+    if rows is None:
+        return
+
+    for i in range(len(rows)):
+        rows[i] = rows[i][1:-1]
+
+    string = text.htable_format([fields[key] for key in fields], rows)
+    filename = f'table-{keyword}.html'
+    async with htmlLock:
+        with open(filename, 'w') as file:
+            file.write(string)
+
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=filename
+        )
+        os.remove(filename)
+
+
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Command not found.')
 
@@ -157,8 +189,16 @@ def _read_token() -> str:
         return file.readline().strip()
 
 
+def _load_fields():
+    with open(FIELDS_PATH, 'r') as file:
+        for line in file:
+            pair = line.strip().split(':')
+            fields[pair[0]] = pair[1]
+
+
 def run() -> None:
     token = _read_token()
+    _load_fields()
     application = ApplicationBuilder().token(token).build()
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', start))
@@ -166,6 +206,7 @@ def run() -> None:
     application.add_handler(CommandHandler('pcount', count_pl))
     application.add_handler(CommandHandler('discin', disc_in))
     application.add_handler(CommandHandler('search', search))
+    application.add_handler(CommandHandler('table', table))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.run_polling()

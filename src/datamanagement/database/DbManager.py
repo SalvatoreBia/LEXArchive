@@ -140,3 +140,14 @@ def count_like(keyword: str):
             return res.fetchone()[0] if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
+        return None
+
+
+def get_pl_by_name(keyword: str):
+    try:
+        query = 'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ?'
+        res = db.execute_query(query, [f'%{keyword}%'])
+        return [row for row in res.fetchall()] if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
