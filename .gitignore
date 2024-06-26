@@ -16,3 +16,6 @@ __pycache__/
 # Ignora altre cartelle e file specifici
 .DS_Store
 .idea/
+
+# ignora file token
+config/token.txt
