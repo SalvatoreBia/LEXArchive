@@ -1,11 +1,12 @@
 import logging
 import asyncio
 import os
+import matplotlib.pyplot as plt
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, \
     CallbackQueryHandler
 from src.datamanagement.database import DbManager as db
-from src.utils import text
+from src.utils import text, research
 
 TOKEN_PATH = 'config/token.txt'
 FIELDS_PATH = 'config/fields.txt'
@@ -19,7 +20,18 @@ search_data = {}
 SEARCH_LIMIT = 25
 fields = {}
 
+plot_supported = {
+    'emass': 'pl_bmasse',
+    'jmass': 'pl_bmassj',
+    'erad': 'pl_rade',
+    'jrad': 'pl_radj',
+    'sgrav': 'st_logg',
+    'srad': 'st_rad',
+    'smass': 'st_mass'
+}
+
 htmlLock = asyncio.Lock()
+pngLock = asyncio.Lock()
 
 
 def reset_search(id):
@@ -180,6 +192,41 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         os.remove(filename)
 
 
+async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    arg = '' if len(context.args) != 1 else context.args[0]
+    if arg == '' or arg not in plot_supported:
+        return
+
+    values = sorted(db.get_field_values(plot_supported[arg]))
+    if values is None:
+        return
+
+    async with pngLock:
+        file = 'plot.png'
+        plt.plot(values)
+        plt.ylabel(arg)
+        plt.savefig(file)
+        plt.close()
+
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=open(file, 'rb')
+        )
+
+        os.remove(file)
+
+
+async def news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    link = research.get_rand_news()
+    if link is None:
+        return
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'{link}'
+    )
+
+
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Command not found.')
 
@@ -207,6 +254,8 @@ def run() -> None:
     application.add_handler(CommandHandler('discin', disc_in))
     application.add_handler(CommandHandler('search', search))
     application.add_handler(CommandHandler('table', table))
+    application.add_handler(CommandHandler('plot', plot))
+    application.add_handler(CommandHandler('news', news))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.run_polling()

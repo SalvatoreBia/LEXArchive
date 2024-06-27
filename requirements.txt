@@ -1,2 +1,5 @@
 requests~=2.32.3
 python-telegram-bot
+googlesearch-python
+matplotlib~=3.9.0
+selenium

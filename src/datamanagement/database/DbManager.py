@@ -13,6 +13,7 @@ class Database:
     def __init__(self):
         self.DUMP = 'config/dump.txt'
         self.DB = 'archive/db.json'
+        self.LIMIT = 20
         self.conn = None
         self.cursor = None
         self._setup()
@@ -33,6 +34,9 @@ class Database:
 
     def close(self):
         self.conn.close()
+
+    def limit(self):
+        return self.LIMIT
 
 
 db = Database()
@@ -145,9 +149,19 @@ def count_like(keyword: str):
 
 def get_pl_by_name(keyword: str):
     try:
-        query = 'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ?'
+        query = f'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ? LIMIT {db.limit()}'
         res = db.execute_query(query, [f'%{keyword}%'])
         return [row for row in res.fetchall()] if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+def get_field_values(keyword: str):
+    try:
+        query = f'SELECT {keyword} FROM ps WHERE {keyword} != ""'
+        res = db.execute_query(query)
+        return [float(row[0]) for row in res.fetchall()] if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None

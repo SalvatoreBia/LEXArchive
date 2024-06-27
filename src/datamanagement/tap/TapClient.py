@@ -52,3 +52,4 @@ def update():
         db.insert(rows)
 
     db.set_current_date()
+    print("updated")
