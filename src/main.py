@@ -18,13 +18,11 @@ def fetch_news():
 
 
 if __name__ == '__main__':
-    '''
     updater_thread = threading.Thread(target=update_db)
     news_fetcher_thread = threading.Thread(target=fetch_news)
     updater_thread.daemon = True
     news_fetcher_thread.daemon = True
     updater_thread.start()
     news_fetcher_thread.start()
-    '''
 
     bot.run()

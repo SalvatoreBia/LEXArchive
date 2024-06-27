@@ -59,7 +59,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    rows = db.count()
+    with db.Database.lock:
+        rows = db.count()
     if rows != -1:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -69,7 +70,8 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    rows = db.count_pl()
+    with db.Database.lock:
+        rows = db.count_pl()
     if rows != -1:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -83,7 +85,9 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     year = int(context.args[0])
-    rows = db.disc_in(year)
+    with db.Database.lock:
+        rows = db.disc_in(year)
+
     if rows != -1:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -103,7 +107,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reset_search(chat)
 
     st, end = search_data[chat]['start'], search_data[chat]['end']
-    rows = db.search_pl(st, end, keyword)
+    with db.Database.lock:
+        rows = db.search_pl(st, end, keyword)
     if rows is None:
         return
 
@@ -136,8 +141,8 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
     chat = query.message.chat.id
     keyword = search_data[chat]['searched']
     st, end = search_data[chat]['start'], search_data[chat]['end']
-    rows = db.count_like(keyword)
-    print(rows)
+    with db.Database.lock:
+        rows = db.count_like(keyword)
 
     if query.data == 'next_page_btn' and end < rows:
         st, end = st + SEARCH_LIMIT, min(end + SEARCH_LIMIT, rows)
@@ -172,7 +177,9 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     keyword = ''.join(context.args).lower()
-    rows = db.get_pl_by_name(keyword)
+    with db.Database.lock:
+        rows = db.get_pl_by_name(keyword)
+
     if rows is None:
         return
 
@@ -197,7 +204,9 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if arg == '' or arg not in plot_supported:
         return
 
-    values = sorted(db.get_field_values(plot_supported[arg]))
+    with db.Database.lock:
+        values = sorted(db.get_field_values(plot_supported[arg]))
+
     if values is None:
         return
 

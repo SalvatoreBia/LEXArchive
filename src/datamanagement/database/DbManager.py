@@ -1,9 +1,11 @@
 import sqlite3
 import datetime
+import threading
 
 
 class Database:
     _instance = None
+    lock = threading.RLock()
 
     def __new__(cls):
         if cls._instance is None:
@@ -19,18 +21,19 @@ class Database:
         self._setup()
 
     def _setup(self):
-        self.conn = sqlite3.connect(self.DB)
+        self.conn = sqlite3.connect(self.DB, check_same_thread=False)
         self.cursor = self.conn.cursor()
-        with open (self.DUMP, 'r') as file:
+        with open(self.DUMP, 'r') as file:
             self.cursor.execute(file.read())
         self.conn.commit()
 
     def execute_query(self, query, params=None):
         if params is None:
             params = []
-        self.cursor.execute(query, params)
-        self.conn.commit()
-        return self.cursor
+        with Database.lock:
+            self.cursor.execute(query, params)
+            self.conn.commit()
+            return self.cursor
 
     def close(self):
         self.conn.close()
