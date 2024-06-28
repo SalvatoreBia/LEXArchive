@@ -6,9 +6,10 @@ import time
 
 
 def update_db():
+    tap.load_fields()
     while True:
         tap.update()
-        time.sleep(86400)
+        time.sleep(60)
 
 
 def fetch_news():
@@ -23,6 +24,6 @@ if __name__ == '__main__':
     updater_thread.daemon = True
     news_fetcher_thread.daemon = True
     updater_thread.start()
-    news_fetcher_thread.start()
+    # news_fetcher_thread.start()
 
     bot.run()

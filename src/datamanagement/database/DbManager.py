@@ -5,7 +5,9 @@ import threading
 
 class Database:
     _instance = None
-    lock = threading.RLock()
+    _state = -1
+    _lock = threading.RLock()
+    _cond = threading.Condition(_lock)
 
     def __new__(cls):
         if cls._instance is None:
@@ -30,16 +32,35 @@ class Database:
     def execute_query(self, query, params=None):
         if params is None:
             params = []
-        with Database.lock:
-            self.cursor.execute(query, params)
-            self.conn.commit()
-            return self.cursor
+        self.cursor.execute(query, params)
+        self.conn.commit()
+        return self.cursor
 
-    def close(self):
-        self.conn.close()
+    @staticmethod
+    def acquire():
+        Database._lock.acquire()
+
+    @staticmethod
+    def release():
+        Database._lock.release()
+
+    @staticmethod
+    def set_state(n: int):
+        Database._is_updating = n
+
+    @staticmethod
+    def condition():
+        return Database._cond
+
+    @staticmethod
+    def get_state():
+        return Database._state
 
     def limit(self):
         return self.LIMIT
+
+    def close(self):
+        self.conn.close()
 
 
 db = Database()

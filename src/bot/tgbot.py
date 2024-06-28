@@ -1,6 +1,9 @@
 import logging
 import asyncio
 import os
+import threading
+import time
+
 import matplotlib.pyplot as plt
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, \
@@ -59,8 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    with db.Database.lock:
-        rows = db.count()
+    rows = db.count()
     if rows != -1:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -70,8 +72,7 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    with db.Database.lock:
-        rows = db.count_pl()
+    rows = db.count_pl()
     if rows != -1:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -85,8 +86,7 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     year = int(context.args[0])
-    with db.Database.lock:
-        rows = db.disc_in(year)
+    rows = db.disc_in(year)
 
     if rows != -1:
         await context.bot.send_message(
@@ -107,8 +107,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reset_search(chat)
 
     st, end = search_data[chat]['start'], search_data[chat]['end']
-    with db.Database.lock:
-        rows = db.search_pl(st, end, keyword)
+    rows = db.search_pl(st, end, keyword)
     if rows is None:
         return
 
@@ -141,8 +140,7 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
     chat = query.message.chat.id
     keyword = search_data[chat]['searched']
     st, end = search_data[chat]['start'], search_data[chat]['end']
-    with db.Database.lock:
-        rows = db.count_like(keyword)
+    rows = db.count_like(keyword)
 
     if query.data == 'next_page_btn' and end < rows:
         st, end = st + SEARCH_LIMIT, min(end + SEARCH_LIMIT, rows)
@@ -165,7 +163,6 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
         index += 1
 
     await query.answer()
-
     await query.message.edit_text(
         text='Available Planets\n\n' + string,
         reply_markup=query.message.reply_markup
@@ -177,8 +174,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     keyword = ''.join(context.args).lower()
-    with db.Database.lock:
-        rows = db.get_pl_by_name(keyword)
+    rows = db.get_pl_by_name(keyword)
 
     if rows is None:
         return
@@ -204,9 +200,7 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if arg == '' or arg not in plot_supported:
         return
 
-    with db.Database.lock:
-        values = sorted(db.get_field_values(plot_supported[arg]))
-
+    values = sorted(db.get_field_values(plot_supported[arg]))
     if values is None:
         return
 
@@ -240,6 +234,14 @@ async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text('Command not found.')
 
 
+async def notify_update(context: ContextTypes.DEFAULT_TYPE, msg) -> None:
+    for id in search_data:
+        await context.bot.send_message(
+            chat_id=id,
+            text=msg
+        )
+
+
 def _read_token() -> str:
     with open(TOKEN_PATH, 'r') as file:
         return file.readline().strip()
@@ -250,6 +252,24 @@ def _load_fields():
         for line in file:
             pair = line.strip().split(':')
             fields[pair[0]] = pair[1]
+
+
+# TODO non funge bene
+def notify(application):
+    while True:
+        db.Database.acquire()
+
+        while db.Database.get_state() == 1:
+            asyncio.run(notify_update(application, 'We\'re currently updating the database,'
+                                                   ' we will notify you when it\'s available.'))
+            db.Database.condition().wait()
+
+        if db.Database.get_state() == 0:
+            asyncio.run(notify_update(application, 'The bot is running.'))
+        db.Database.set_state(-1)
+        print("ciao")
+        db.Database.release()
+        time.sleep(50)
 
 
 def run() -> None:
@@ -268,3 +288,7 @@ def run() -> None:
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.run_polling()
+
+    watchdog = threading.Thread(target=notify, args=(application,))
+    watchdog.daemon = True
+    watchdog.start()
