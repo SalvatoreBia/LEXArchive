@@ -1,4 +1,4 @@
-def htable_format(headers: list, rows: list) -> str:
+def htable_format(headers: list, rows: list, exceeds: bool) -> str:
     head = '''
                 <head>
                     <style>
@@ -37,6 +37,8 @@ def htable_format(headers: list, rows: list) -> str:
                             text-decoration: underline;
                         }
                     </style>
+                    
+                <title>Table</title>
                 </head>
                 <body>
             '''
@@ -54,4 +56,8 @@ def htable_format(headers: list, rows: list) -> str:
         tr += '\t</tr>\n'
         table += tr
     table += '</table>\n</body>'
+    if exceeds:
+        table += ('<footer>*Note: this file doesn\'t contain all records. If you want to check all of them, '
+                  '<a href="https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config'
+                  '=PS" target="_blank">visit the official NASA\'s website</a>')
     return head + table

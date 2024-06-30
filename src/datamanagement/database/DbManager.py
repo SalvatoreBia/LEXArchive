@@ -8,6 +8,7 @@ class Database:
     _state = -1
     _lock = threading.RLock()
     _cond = threading.Condition(_lock)
+    _LIMIT = 20
 
     def __new__(cls):
         if cls._instance is None:
@@ -17,7 +18,6 @@ class Database:
     def __init__(self):
         self.DUMP = 'config/dump.txt'
         self.DB = 'archive/db.json'
-        self.LIMIT = 20
         self.conn = None
         self.cursor = None
         self._setup()
@@ -56,8 +56,9 @@ class Database:
     def get_state():
         return Database._state
 
-    def limit(self):
-        return self.LIMIT
+    @staticmethod
+    def limit():
+        return Database._LIMIT
 
     def close(self):
         self.conn.close()
@@ -171,14 +172,29 @@ def count_like(keyword: str):
         return None
 
 
-def get_pl_by_name(keyword: str):
+def count_rows_per_pl(keyword: str):
     try:
-        query = f'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ? LIMIT {db.limit()}'
-        res = db.execute_query(query, [f'%{keyword}%'])
-        return [row for row in res.fetchall()] if res else None
+        if keyword is None:
+            return count_pl()
+        else:
+            query = 'SELECT COUNT(id) FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ?'
+            res = db.execute_query(query, [f'%{keyword}%'])
+            return res.fetchone()[0] if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def get_pl_by_name(keyword: str):
+    try:
+        query = f'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ? LIMIT {Database.limit()}'
+        cres = True if count_rows_per_pl(keyword) >= Database.limit() else False
+        res = db.execute_query(query, [f'%{keyword}%'])
+        rows = [row for row in res.fetchall()] if res else []
+        return rows, cres
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None, None
 
 
 def get_field_values(keyword: str):

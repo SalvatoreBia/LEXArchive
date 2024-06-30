@@ -13,6 +13,7 @@ from src.utils import text, research
 
 TOKEN_PATH = 'config/token.txt'
 FIELDS_PATH = 'config/fields.txt'
+SUB_PATH = 'data/subscribers.txt'
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -35,6 +36,7 @@ plot_supported = {
 
 htmlLock = asyncio.Lock()
 pngLock = asyncio.Lock()
+subLock = asyncio.Lock()
 
 
 def reset_search(id):
@@ -174,7 +176,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     keyword = ''.join(context.args).lower()
-    rows = db.get_pl_by_name(keyword)
+    rows, exceeds = db.get_pl_by_name(keyword)
 
     if rows is None:
         return
@@ -182,7 +184,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for i in range(len(rows)):
         rows[i] = rows[i][1:-1]
 
-    string = text.htable_format([fields[key] for key in fields], rows)
+    string = text.htable_format([fields[key] for key in fields], rows, exceeds)
     filename = f'table-{keyword}.html'
     async with htmlLock:
         with open(filename, 'w') as file:
@@ -219,15 +221,47 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         os.remove(file)
 
 
-async def news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    link = research.get_rand_news()
-    if link is None:
-        return
+async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    id = update.effective_chat.id
+    async with subLock:
+        with open(SUB_PATH, 'r') as file:
+            for line in file:
+                if line.strip() == str(id):
+                    await context.bot.send_message(
+                        chat_id=id,
+                        text='You\'re already subscribed 🙂'
+                    )
+                    return
 
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f'{link}'
-    )
+        with open(SUB_PATH, 'a') as file:
+            file.write(str(id) + '\n')
+        await context.bot.send_message(
+            chat_id=id,
+            text='Your subscription was registered successfully.'
+        )
+
+
+async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    id = update.effective_chat.id
+    async with subLock:
+        with open(SUB_PATH, 'r') as file:
+            ids = file.readlines()
+        orig_len = len(ids)
+        check = [row for row in ids if row.strip() != str(id)]
+        if orig_len == len(check):
+            await context.bot.send_message(
+                chat_id=id,
+                text='You\'re not subscribed.'
+            )
+            return
+
+        with open(SUB_PATH, 'w') as file:
+            file.writelines(check)
+
+        await context.bot.send_message(
+            chat_id=id,
+            text='Your unsubscription has been successfully processed.'
+        )
 
 
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -284,11 +318,12 @@ def run() -> None:
     application.add_handler(CommandHandler('search', search))
     application.add_handler(CommandHandler('table', table))
     application.add_handler(CommandHandler('plot', plot))
-    application.add_handler(CommandHandler('news', news))
+    application.add_handler(CommandHandler('sub', subscribe))
+    application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.run_polling()
 
     watchdog = threading.Thread(target=notify, args=(application,))
     watchdog.daemon = True
-    watchdog.start()
+    # watchdog.start()

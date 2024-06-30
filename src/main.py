@@ -9,7 +9,7 @@ def update_db():
     tap.load_fields()
     while True:
         tap.update()
-        time.sleep(60)
+        time.sleep(86400)
 
 
 def fetch_news():
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     news_fetcher_thread = threading.Thread(target=fetch_news)
     updater_thread.daemon = True
     news_fetcher_thread.daemon = True
-    updater_thread.start()
+    # updater_thread.start()
     # news_fetcher_thread.start()
 
     bot.run()
