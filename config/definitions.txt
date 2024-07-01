@@ -1,0 +1,40 @@
+Planet Name:Planet name most commonly used in the literature
+Host Name:Stellar name most commonly used in the literature
+Default Parameter Set:Boolean flag indicating whether given set of planet parameters has been selected as default (1=yes, 0=no)
+Number of Stars:Number of stars in the planetary system
+Number of Planets:Number of confirmed planets in the planetary system
+Discovery Method:Method by which the planet was first identified
+Discovery Year:Year the planet was discovered
+Discovery Facility:Name of facility of planet discovery observations
+Solution Type:Disposition of planet according to given planet parameter set
+Controversial Flag:Flag indicating whether the confirmation status of a planet has been questioned in the published literature (1=yes, 0=no)
+Planetary Parameter Reference:Reference of publication used for given planet parameter set
+Orbital Period [days]:Time the planet takes to make a complete orbit around the host star or system
+Orbit Semi-Major Axis [au]:The longest radius of an elliptic orbit, or, for exoplanets detected via gravitational microlensing or direct imaging, the projected separation in the plane of the sky
+Planet Radius [Earth Radius]:Length of a line segment from the center of the planet to its surface, measured in units of radius of the Earth
+Planet Radius [Jupiter Radius]:Length of a line segment from the center of the planet to its surface, measured in units of radius of Jupiter
+Planet Mass or Mass*sin(i) [Earth Mass]:Best planet mass estimate available, in order of preference: Mass, M*sin(i)/sin(i), or M*sin(i), depending on availability, and measured in Earth masses
+Planet Mass or Mass*sin(i) [Jupiter Mass]:Best planet mass estimate available, in order of preference: Mass, M*sin(i)/sin(i), or M*sin(i), depending on availability, and measured in Jupiter masses
+Planet Mass or Mass*sin(i) Provenance:Provenance of the measurement of the best mass. Options are: Mass, M*sin(i)/sin(i), and M*sini
+Eccentricity:Amount by which the orbit of the planet deviates from a perfect circle
+Insolation Flux [Earth Flux]:Insolation flux is another way to give the equilibrium temperature. It's given in units relative to those measured for the Earth from the Sun.
+Equilibrium Temperature [K]:The equilibrium temperature of the planet as modeled by a black body heated only by its host star, or for directly imaged planets, the effective temperature of the planet required to match the measured luminosity if the planet were a black body
+Data show Transit Timing Variations:Flag indicating if the planet orbit exhibits transit timing variations from another planet in the system (1=yes, 0=no).  NOTE: Non-transiting planets discovered via the transit timing variations of another planet in the system will not have their TTV flag set, since they do not themselves demonstrate TTVs.
+Stellar Parameter Reference:Reference of publication used for given stellar parameter set
+Spectral Type:Classification of the star based on their spectral characteristics following the Morgan-Keenan system
+Stellar Effective Temperature [K]:Temperature of the star as modeled by a black body emitting the same total amount of electromagnetic radiation
+Stellar Radius [Solar Radius]:Length of a line segment from the center of the star to its surface, measured in units of radius of the Sun
+Stellar Mass [Solar Mass]:Amount of matter contained in the star, measured in units of masses of the Sun
+Stellar Metallicity [dex]:Measurement of the metal content of the photosphere of the star as compared to the hydrogen content
+Stellar Metallicity Ratio:Ratio for the Metallicity Value ([Fe/H] denotes iron abundance, [M/H] refers to a general metal content)
+Stellar Surface Gravity [log10(cm/s**2)]:Gravitational acceleration experienced at the stellar surface
+System Parameter Reference:Reference of publication used for given system parameter set
+RA [sexagesimal]:Right Ascension of the planetary system in sexagesimal format
+Dec [sexagesimal]:Declination of the planetary system in sexagesimal notation
+Distance [pc]:Distance to the planetary system in units of parsecs
+V (Johnson) Magnitude:Brightness of the host star as measured using the V (Johnson) band in units of magnitudes
+Ks (2MASS) Magnitude:Brightness of the host star as measured using the K (2MASS) band in units of magnitudes
+Gaia Magnitude:Brightness of the host star as measuring using the Gaia band in units of magnitudes. Objects matched to Gaia using the Hipparcos or 2MASS IDs provided in Gaia DR2.
+Date of Last Update:Date of last update of the planet parameters
+Planetary Parameter Reference Publication Date:Date of the publication of the given planet parameter set
+Release Date:Date that the given planet parameter set was publicly released by the NASA Exoplanet Archive

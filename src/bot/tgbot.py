@@ -1,19 +1,20 @@
 import logging
 import asyncio
 import os
-import threading
-import time
+import uuid
 
 import matplotlib.pyplot as plt
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, \
+    InputTextMessageContent
 from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, \
-    CallbackQueryHandler
+    CallbackQueryHandler, InlineQueryHandler
 from src.datamanagement.database import DbManager as db
-from src.utils import text, research
+from src.utils import text
 
 TOKEN_PATH = 'config/token.txt'
 FIELDS_PATH = 'config/fields.txt'
 SUB_PATH = 'data/subscribers.txt'
+DEF_PATH = 'config/definitions.txt'
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -22,7 +23,8 @@ logging.basicConfig(
 
 search_data = {}
 SEARCH_LIMIT = 25
-fields = {}
+fields_ = {}
+definitions = {}
 
 plot_supported = {
     'emass': 'pl_bmasse',
@@ -63,6 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reset_search(chat)
 
 
+# count how many rows are in the database
 async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     rows = db.count()
     if rows != -1:
@@ -73,6 +76,7 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# count how many planets were discovered
 async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     rows = db.count_pl()
     if rows != -1:
@@ -83,6 +87,7 @@ async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# count how many planets were discovered in a certain year
 async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if len(context.args) != 1:
         return
@@ -98,6 +103,7 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# returns a list of planet with buttons to iterate it
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyword = None if len(context.args) == 0 else (''.join(context.args)).lower()
     chat = update.effective_chat.id
@@ -136,6 +142,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     search_data[chat]['searched'] = keyword
 
 
+# button listener for the search command
 async def button_listener(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
 
@@ -171,6 +178,7 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
     )
 
 
+# returns an html table retrieving some records of a specific planet
 async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if len(context.args) == 0:
         return
@@ -184,7 +192,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for i in range(len(rows)):
         rows[i] = rows[i][1:-1]
 
-    string = text.htable_format([fields[key] for key in fields], rows, exceeds)
+    string = text.htable_format([fields_[key] for key in fields_], rows, exceeds)
     filename = f'table-{keyword}.html'
     async with htmlLock:
         with open(filename, 'w') as file:
@@ -197,6 +205,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         os.remove(filename)
 
 
+# plot how a field is distributed
 async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     arg = '' if len(context.args) != 1 else context.args[0]
     if arg == '' or arg not in plot_supported:
@@ -221,6 +230,38 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         os.remove(file)
 
 
+# returns the list of fields
+async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    string = ''
+    for key in fields_:
+        string += f'_{fields_[key]}_\n'
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=string,
+        parse_mode='Markdown'
+    )
+
+
+# inline query to retrieve information about database fields meaning
+async def inline_query(update: Update, context: CallbackContext) -> None:
+    query = update.inline_query.query
+    if not query:
+        return
+
+    matches = [val for val in definitions if query.lower() in val.lower()]
+
+    results = [
+        InlineQueryResultArticle(
+            id=str(uuid.uuid4()),
+            title=key,
+            input_message_content=InputTextMessageContent(definitions[key])
+        ) for key in matches
+    ]
+    await update.inline_query.answer(results)
+
+
+# lets user subscribe to receive news
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     id = update.effective_chat.id
     async with subLock:
@@ -241,6 +282,7 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# lets user unsubscribe
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     id = update.effective_chat.id
     async with subLock:
@@ -264,16 +306,9 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
 
 
+# stock message for unknown commands
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Command not found.')
-
-
-async def notify_update(context: ContextTypes.DEFAULT_TYPE, msg) -> None:
-    for id in search_data:
-        await context.bot.send_message(
-            chat_id=id,
-            text=msg
-        )
 
 
 def _read_token() -> str:
@@ -285,30 +320,20 @@ def _load_fields():
     with open(FIELDS_PATH, 'r') as file:
         for line in file:
             pair = line.strip().split(':')
-            fields[pair[0]] = pair[1]
+            fields_[pair[0]] = pair[1]
 
 
-# TODO non funge bene
-def notify(application):
-    while True:
-        db.Database.acquire()
-
-        while db.Database.get_state() == 1:
-            asyncio.run(notify_update(application, 'We\'re currently updating the database,'
-                                                   ' we will notify you when it\'s available.'))
-            db.Database.condition().wait()
-
-        if db.Database.get_state() == 0:
-            asyncio.run(notify_update(application, 'The bot is running.'))
-        db.Database.set_state(-1)
-        print("ciao")
-        db.Database.release()
-        time.sleep(50)
+def _load_definitions():
+    with open(DEF_PATH, 'r') as file:
+        for line in file:
+            pair = line.strip().split(':')
+            definitions[pair[0]] = pair[1]
 
 
 def run() -> None:
     token = _read_token()
     _load_fields()
+    _load_definitions()
     application = ApplicationBuilder().token(token).build()
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', start))
@@ -318,12 +343,10 @@ def run() -> None:
     application.add_handler(CommandHandler('search', search))
     application.add_handler(CommandHandler('table', table))
     application.add_handler(CommandHandler('plot', plot))
+    application.add_handler(CommandHandler('fields', fields))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
+    application.add_handler(InlineQueryHandler(inline_query))
     application.run_polling()
-
-    watchdog = threading.Thread(target=notify, args=(application,))
-    watchdog.daemon = True
-    # watchdog.start()
