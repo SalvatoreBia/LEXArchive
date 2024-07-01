@@ -2,12 +2,17 @@ import logging
 import asyncio
 import os
 import uuid
+import re
 
 import matplotlib.pyplot as plt
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, \
-    InputTextMessageContent
-from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, \
-    CallbackQueryHandler, InlineQueryHandler
+from telegram import (
+    Update, InlineKeyboardButton, InlineKeyboardMarkup,
+    InlineQueryResultArticle, InputTextMessageContent
+)
+from telegram.ext import (
+    ContextTypes, ApplicationBuilder, CommandHandler, MessageHandler,
+    filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
+)
 from src.datamanagement.database import DbManager as db
 from src.utils import text
 
@@ -264,22 +269,41 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
 # lets user subscribe to receive news
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     id = update.effective_chat.id
-    async with subLock:
-        with open(SUB_PATH, 'r') as file:
-            for line in file:
-                if line.strip() == str(id):
-                    await context.bot.send_message(
-                        chat_id=id,
-                        text='You\'re already subscribed 🙂'
-                    )
-                    return
+    if len(context.args) != 1:
+        return
 
-        with open(SUB_PATH, 'a') as file:
-            file.write(str(id) + '\n')
+    time = context.args[0]
+    regex = r'^([0-9]{2})\:([0-9]{2})$'
+    match = re.match(regex, time)
+    if not (match and (0 <= int(match.group(1)) < 24) and (0 <= int(match.group(2)) < 60)):
         await context.bot.send_message(
             chat_id=id,
-            text='Your subscription was registered successfully.'
+            text='Specified time doesn\'t match the required format.'
         )
+        return
+
+    async with subLock:
+        with open(SUB_PATH, 'r') as file:
+            subs = file.readlines()
+
+    already_sub = False
+    for i in range(len(subs)):
+        if subs[i].strip().split('-')[0] == str(id):
+            subs[i] = f'{id}-{time}\n'
+            already_sub = True
+            break
+
+    if not already_sub:
+        subs.append(f'{id}-{time}')
+
+    async with subLock:
+        with open(SUB_PATH, 'w') as file:
+            file.writelines(subs)
+
+    await context.bot.send_message(
+        chat_id=id,
+        text='Your subscription was processed correctly.'
+    )
 
 
 # lets user unsubscribe
@@ -287,22 +311,24 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     id = update.effective_chat.id
     async with subLock:
         with open(SUB_PATH, 'r') as file:
-            ids = file.readlines()
-        orig_len = len(ids)
-        check = [row for row in ids if row.strip() != str(id)]
-        if orig_len == len(check):
-            await context.bot.send_message(
-                chat_id=id,
-                text='You\'re not subscribed.'
-            )
-            return
+            subs = file.readlines()
 
+    orig_len = len(subs)
+    filtered = [sub for sub in subs if sub.strip().split('-')[0] != str(id)]
+
+    async with subLock:
         with open(SUB_PATH, 'w') as file:
-            file.writelines(check)
+            file.writelines(filtered)
 
+    if len(filtered) == orig_len:
         await context.bot.send_message(
             chat_id=id,
-            text='Your unsubscription has been successfully processed.'
+            text='You\'re not subscribed.'
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=id,
+            text='Your unsubscription was processed correctly.'
         )
 
 
