@@ -4,14 +4,16 @@ import asyncio
 import os
 from datetime import datetime
 from src.utils import research
+from src.datamanagement.tap import TapClient
 
 
 class NewsScheduler(threading.Thread):
     _FILE = 'data/subscribers.txt'
 
-    def __init__(self, bot, lock: threading.RLock):
+    def __init__(self, bot, sub_lock: threading.RLock, news_lock: threading.RLock):
         super().__init__(daemon=True)
-        self._lock = lock
+        self._sub_lock = sub_lock
+        self._news_lock = news_lock
         self._bot = bot
         self._subs = {}
         self._last_mtime = 0
@@ -20,7 +22,7 @@ class NewsScheduler(threading.Thread):
 
     def _read(self):
         try:
-            with self._lock:
+            with self._sub_lock:
                 current_mtime = os.path.getmtime(self._FILE)
                 if current_mtime != self._last_mtime:
                     with open(self._FILE, 'r') as file:
@@ -34,17 +36,19 @@ class NewsScheduler(threading.Thread):
             self._read()
             current_time = datetime.now().strftime('%H:%M')
             to_notify = [chat_id for chat_id in self._subs if self._subs[chat_id] == current_time]
-
+            if len(to_notify) > 0:
+                with self._news_lock:
+                    link = research.get_rand_news()
             for user in to_notify:
                 self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=user,
-                    text='notificus'
+                    text=link
                 ))
             time.sleep(60)
 
 
 class NewsFetcher(threading.Thread):
-    _FILE = '../../data/news.txt'
+    _FILE = 'data/news.txt'
 
     def __init__(self, lock: threading.RLock):
         super().__init__()
@@ -60,5 +64,34 @@ class NewsFetcher(threading.Thread):
                             file.write(news)
                     except IOError as e:
                         print(f'Error trying to open news file: {e}')
-                print("done")
+            time.sleep(86400)
+
+
+class ArchiveUpdater(threading.Thread):
+
+    def __init__(self, bot, ids: list):
+        super().__init__()
+        self._bot = bot
+        self._ids = ids
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
+    def add_id(self, id: int):
+        self._ids.append(id)
+
+    def run(self):
+        TapClient.load_fields()
+        while True:
+            for chat_id in self._ids:
+                self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
+                    chat_id=chat_id,
+                    text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                         'moment.'
+                ))
+            TapClient.update()
+            for chat_id in self._ids:
+                self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
+                    chat_id=chat_id,
+                    text='We\'ve updated the database, all commands are now available.'
+                ))
             time.sleep(86400)

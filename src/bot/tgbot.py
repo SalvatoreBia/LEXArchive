@@ -45,7 +45,9 @@ plot_supported = {
 htmlLock = asyncio.Lock()
 pngLock = asyncio.Lock()
 subLock = threading.RLock()
+newsLock = threading.RLock()
 executor = ThreadPoolExecutor(max_workers=2)
+updater = None
 
 # _____________________________FUNCTIONS_______________________________________
 
@@ -82,6 +84,7 @@ def write_subs(subs: list) -> bool:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat.id
+    updater.add_id(chat)
     await context.bot.send_message(
         chat_id=chat,
         text=f'🌌 *Welcome to LEXArchive!* 🚀\n\nHello, {update.effective_chat.effective_name}. '
@@ -374,6 +377,7 @@ def _load_definitions():
 
 
 def run() -> None:
+    global updater
     token = _read_token()
     _load_fields()
     _load_definitions()
@@ -392,7 +396,15 @@ def run() -> None:
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.add_handler(InlineQueryHandler(inline_query))
-    news_scheduler = mythreads.NewsScheduler(application.bot, subLock)
+
+    updater = mythreads.ArchiveUpdater(application.bot, list(search_data.keys()))
+    news_scheduler = mythreads.NewsScheduler(application.bot, subLock, newsLock)
+    news_fetcher = mythreads.NewsFetcher(newsLock)
+    updater.daemon = True
+    news_fetcher.daemon = True
     news_scheduler.daemon = True
+    updater.start()
     news_scheduler.start()
+    news_fetcher.start()
+
     application.run_polling()

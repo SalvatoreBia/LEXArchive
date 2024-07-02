@@ -5,7 +5,7 @@ from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
 
-FILE = '../../data/news.txt'
+FILE = 'data/news.txt'
 
 
 def fetch_news(keyword='exoplanets news'):

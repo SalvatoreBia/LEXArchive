@@ -11,10 +11,7 @@ concat_fields = ''
 def load_fields():
     global concat_fields
     with open(FIELDS_PATH, 'r') as file:
-        for line in file:
-            pair = line.strip().split(':')
-            concat_fields += pair[0] + ','
-    concat_fields = concat_fields[:-1]
+        concat_fields = ','.join([line.strip().split(':')[0] for line in file])
 
 
 def _form_rows(csv_string):
@@ -46,7 +43,6 @@ def update():
             BASE_URL + f'select+{concat_fields}+from+ps+where+releasedate%3E%3D\'{last_date}\'+or+rowupdate%3E%3D\''
                        f'{last_date}\'&format=csv'
         )
-        print(response.text)
         assert response.status_code == 200, f'HTTPError -> response code {response.status_code}'
         rows = _form_rows(response.text)
         names = list(set(row[1] for row in rows))
