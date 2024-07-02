@@ -1,10 +1,11 @@
 import logging
 import asyncio
 import os
+import threading
 import uuid
 import re
-
 import matplotlib.pyplot as plt
+from concurrent.futures import ThreadPoolExecutor
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
     InlineQueryResultArticle, InputTextMessageContent
@@ -14,23 +15,23 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text
-
-TOKEN_PATH = 'config/token.txt'
-FIELDS_PATH = 'config/fields.txt'
-SUB_PATH = 'data/subscribers.txt'
-DEF_PATH = 'config/definitions.txt'
+from src.utils import text, scheduler
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
+# _________________________VARIABLES______________________________________
+
+TOKEN_PATH = 'config/token.txt'
+FIELDS_PATH = 'config/fields.txt'
+SUB_PATH = 'data/subscribers.txt'
+DEF_PATH = 'config/definitions.txt'
 search_data = {}
 SEARCH_LIMIT = 25
 fields_ = {}
 definitions = {}
-
 plot_supported = {
     'emass': 'pl_bmasse',
     'jmass': 'pl_bmassj',
@@ -43,7 +44,10 @@ plot_supported = {
 
 htmlLock = asyncio.Lock()
 pngLock = asyncio.Lock()
-subLock = asyncio.Lock()
+subLock = threading.RLock()
+executor = ThreadPoolExecutor(max_workers=2)
+
+# _____________________________FUNCTIONS_______________________________________
 
 
 def reset_search(id):
@@ -53,6 +57,27 @@ def reset_search(id):
         'last': None,
         'searched': None
     }
+
+
+def read_subs() -> list:
+    with subLock:
+        try:
+            with open(SUB_PATH, 'r') as file:
+                return file.readlines()
+        except IOError as e:
+            print(f'Error reading subscription file: {e}')
+            return []
+
+
+def write_subs(subs: list) -> bool:
+    with subLock:
+        try:
+            with open(SUB_PATH, 'w') as file:
+                file.writelines(subs)
+                return True
+        except IOError as e:
+            print(f'Error reading subscription file: {e}')
+            return False
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -282,9 +307,7 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    async with subLock:
-        with open(SUB_PATH, 'r') as file:
-            subs = file.readlines()
+    subs = await asyncio.get_event_loop().run_in_executor(executor, read_subs)
 
     already_sub = False
     for i in range(len(subs)):
@@ -296,9 +319,7 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not already_sub:
         subs.append(f'{id}-{time}')
 
-    async with subLock:
-        with open(SUB_PATH, 'w') as file:
-            file.writelines(subs)
+    await asyncio.get_event_loop().run_in_executor(executor, write_subs, subs)
 
     await context.bot.send_message(
         chat_id=id,
@@ -309,16 +330,12 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # lets user unsubscribe
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     id = update.effective_chat.id
-    async with subLock:
-        with open(SUB_PATH, 'r') as file:
-            subs = file.readlines()
+    subs = await asyncio.get_event_loop().run_in_executor(executor, read_subs)
 
     orig_len = len(subs)
     filtered = [sub for sub in subs if sub.strip().split('-')[0] != str(id)]
 
-    async with subLock:
-        with open(SUB_PATH, 'w') as file:
-            file.writelines(filtered)
+    await asyncio.get_event_loop().run_in_executor(executor, write_subs, filtered)
 
     if len(filtered) == orig_len:
         await context.bot.send_message(
@@ -375,4 +392,7 @@ def run() -> None:
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.add_handler(InlineQueryHandler(inline_query))
+    news_scheduler = scheduler.NewsScheduler(application.bot, subLock)
+    news_scheduler.daemon = True
+    news_scheduler.start()
     application.run_polling()
