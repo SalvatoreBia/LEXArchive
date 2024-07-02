@@ -5,7 +5,7 @@ from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
 
-FILE = '../../config/news.txt'
+FILE = '../../data/news.txt'
 
 
 def fetch_news(keyword='exoplanets news'):
@@ -26,9 +26,7 @@ def fetch_news(keyword='exoplanets news'):
     soup = BeautifulSoup(page, 'html.parser')
     a = soup.find_all('a', class_='WlydOe')
 
-    with open(FILE, 'w') as file:
-        string = ','.join([link.get('href') for link in a])
-        file.write(string)
+    return ','.join([link.get('href') for link in a]) if len(a) > 0 else ''
 
 
 def get_rand_news():
@@ -36,3 +34,5 @@ def get_rand_news():
         links = file.read().strip().split(',')
 
     return random.choice(links)
+
+

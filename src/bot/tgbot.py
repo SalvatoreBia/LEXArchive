@@ -15,7 +15,7 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text, scheduler
+from src.utils import text, mythreads
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -392,7 +392,7 @@ def run() -> None:
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
     application.add_handler(InlineQueryHandler(inline_query))
-    news_scheduler = scheduler.NewsScheduler(application.bot, subLock)
+    news_scheduler = mythreads.NewsScheduler(application.bot, subLock)
     news_scheduler.daemon = True
     news_scheduler.start()
     application.run_polling()

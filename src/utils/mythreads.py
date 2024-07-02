@@ -3,6 +3,7 @@ import time
 import asyncio
 import os
 from datetime import datetime
+from src.utils import research
 
 
 class NewsScheduler(threading.Thread):
@@ -40,3 +41,24 @@ class NewsScheduler(threading.Thread):
                     text='notificus'
                 ))
             time.sleep(60)
+
+
+class NewsFetcher(threading.Thread):
+    _FILE = '../../data/news.txt'
+
+    def __init__(self, lock: threading.RLock):
+        super().__init__()
+        self._lock = lock
+
+    def run(self):
+        while True:
+            news = research.fetch_news()
+            if news != '':
+                with self._lock:
+                    try:
+                        with open(NewsFetcher._FILE, 'w') as file:
+                            file.write(news)
+                    except IOError as e:
+                        print(f'Error trying to open news file: {e}')
+                print("done")
+            time.sleep(86400)
