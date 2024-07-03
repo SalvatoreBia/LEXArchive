@@ -46,7 +46,7 @@ htmlLock = asyncio.Lock()
 pngLock = asyncio.Lock()
 subLock = threading.RLock()
 newsLock = threading.RLock()
-executor = ThreadPoolExecutor(max_workers=2)
+executor = ThreadPoolExecutor()
 updater = None
 
 # _____________________________FUNCTIONS_______________________________________
@@ -406,5 +406,5 @@ def run() -> None:
     updater.start()
     news_scheduler.start()
     news_fetcher.start()
-
+    updater.is_alive()
     application.run_polling()

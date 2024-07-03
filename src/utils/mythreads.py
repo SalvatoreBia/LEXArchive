@@ -6,6 +6,8 @@ from datetime import datetime
 from src.utils import research
 from src.datamanagement.tap import TapClient
 
+LOOP = asyncio.get_event_loop()
+
 
 class NewsScheduler(threading.Thread):
     _FILE = 'data/subscribers.txt'
@@ -17,8 +19,6 @@ class NewsScheduler(threading.Thread):
         self._bot = bot
         self._subs = {}
         self._last_mtime = 0
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
 
     def _read(self):
         try:
@@ -40,7 +40,7 @@ class NewsScheduler(threading.Thread):
                 with self._news_lock:
                     link = research.get_rand_news()
             for user in to_notify:
-                self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
+                LOOP.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=user,
                     text=link
                 ))
@@ -73,25 +73,36 @@ class ArchiveUpdater(threading.Thread):
         super().__init__()
         self._bot = bot
         self._ids = ids
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
+        self._sleeping = False
+        self._sleep_lock = threading.RLock
 
     def add_id(self, id: int):
         self._ids.append(id)
+
+    def is_sleeping(self):
+        with self._sleep_lock:
+            return self._sleeping
+
+    def _set_sleeping(self, b: bool):
+        with self._sleep_lock:
+            self._sleeping = b
 
     def run(self):
         TapClient.load_fields()
         while True:
             for chat_id in self._ids:
-                self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
+                LOOP.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=chat_id,
                     text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
                          'moment.'
                 ))
             TapClient.update()
             for chat_id in self._ids:
-                self.loop.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
+                LOOP.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=chat_id,
                     text='We\'ve updated the database, all commands are now available.'
                 ))
-            time.sleep(86400)
+
+            self._set_sleeping(True)
+            time.sleep(30)
+            self._set_sleeping(False)
