@@ -25,11 +25,8 @@ def _form_rows(csv_string):
 
 
 def update():
-    db.Database.acquire()
-
     db_count = db.count()
     assert db_count != -1, 'Database error.'
-    db.Database.set_state(1)
     if db_count == 0:
         response = requests.get(BASE_URL + f'select+{concat_fields}+from+ps&format=csv')
         assert response.status_code == 200, f'HTTPError -> response code {response.status_code}'
@@ -50,9 +47,5 @@ def update():
             db.delete(names)
         db.insert(rows)
     db.set_current_date()
-    db.Database.set_state(0)
-
-    db.Database.condition().notify_all()
-    db.Database.release()
 
     print("updated")

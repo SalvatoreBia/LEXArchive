@@ -22,7 +22,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# _________________________VARIABLES______________________________________
+# _____________________________VARIABLES______________________________________
 
 TOKEN_PATH = 'config/token.txt'
 FIELDS_PATH = 'config/fields.txt'
@@ -46,10 +46,11 @@ htmlLock = asyncio.Lock()
 pngLock = asyncio.Lock()
 subLock = threading.RLock()
 newsLock = threading.RLock()
+state_lock = threading.RLock()
 executor = ThreadPoolExecutor()
 updater = None
 
-# _____________________________FUNCTIONS_______________________________________
+# _____________________________FUNCTIONS______________________________________
 
 
 def reset_search(id):
@@ -82,6 +83,11 @@ def write_subs(subs: list) -> bool:
             return False
 
 
+def current_state() -> bool:
+    with state_lock:
+        return updater.is_sleeping()
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat.id
     updater.add_id(chat)
@@ -100,6 +106,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many rows are in the database
 async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
     rows = db.count()
     if rows != -1:
         await context.bot.send_message(
@@ -111,6 +129,18 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many planets were discovered
 async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
     rows = db.count_pl()
     if rows != -1:
         await context.bot.send_message(
@@ -122,6 +152,19 @@ async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many planets were discovered in a certain year
 async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     if len(context.args) != 1:
         return
 
@@ -138,6 +181,19 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # returns a list of planet with buttons to iterate it
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     keyword = None if len(context.args) == 0 else (''.join(context.args)).lower()
     chat = update.effective_chat.id
     if chat in search_data and search_data[chat]['last'] is not None:
@@ -177,6 +233,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # button listener for the search command
 async def button_listener(update: Update, context: CallbackContext) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     query = update.callback_query
 
     chat = query.message.chat.id
@@ -213,6 +282,19 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
 
 # returns an html table retrieving some records of a specific planet
 async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     if len(context.args) == 0:
         return
 
@@ -240,6 +322,19 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # plot how a field is distributed
 async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     arg = '' if len(context.args) != 1 else context.args[0]
     if arg == '' or arg not in plot_supported:
         return
@@ -265,6 +360,19 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # returns the list of fields
 async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     string = ''
     for key in fields_:
         string += f'_{fields_[key]}_\n'
@@ -278,6 +386,15 @@ async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     query = update.inline_query.query
     if not query:
         return
@@ -296,6 +413,19 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
 
 # lets user subscribe to receive news
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     id = update.effective_chat.id
     if len(context.args) != 1:
         return
@@ -332,6 +462,19 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # lets user unsubscribe
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
+                 'moment.'
+        )
+        return
+
     id = update.effective_chat.id
     subs = await asyncio.get_event_loop().run_in_executor(executor, read_subs)
 
@@ -354,6 +497,10 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # stock message for unknown commands
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
     await update.message.reply_text('Command not found.')
 
 
@@ -397,7 +544,7 @@ def run() -> None:
     application.add_handler(CallbackQueryHandler(button_listener))
     application.add_handler(InlineQueryHandler(inline_query))
 
-    updater = mythreads.ArchiveUpdater(application.bot, list(search_data.keys()))
+    updater = mythreads.ArchiveUpdater(application.bot, list(search_data.keys()), state_lock)
     news_scheduler = mythreads.NewsScheduler(application.bot, subLock, newsLock)
     news_fetcher = mythreads.NewsFetcher(newsLock)
     updater.daemon = True
@@ -407,4 +554,5 @@ def run() -> None:
     news_scheduler.start()
     news_fetcher.start()
     updater.is_alive()
+
     application.run_polling()

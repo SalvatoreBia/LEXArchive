@@ -1,13 +1,10 @@
 import sqlite3
 import datetime
-import threading
 
 
 class Database:
     _instance = None
     _state = -1
-    _lock = threading.RLock()
-    _cond = threading.Condition(_lock)
     _LIMIT = 20
 
     def __new__(cls):
@@ -35,26 +32,6 @@ class Database:
         self.cursor.execute(query, params)
         self.conn.commit()
         return self.cursor
-
-    @staticmethod
-    def acquire():
-        Database._lock.acquire()
-
-    @staticmethod
-    def release():
-        Database._lock.release()
-
-    @staticmethod
-    def set_state(n: int):
-        Database._is_updating = n
-
-    @staticmethod
-    def condition():
-        return Database._cond
-
-    @staticmethod
-    def get_state():
-        return Database._state
 
     @staticmethod
     def limit():
