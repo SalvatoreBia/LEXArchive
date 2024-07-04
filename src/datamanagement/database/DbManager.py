@@ -182,3 +182,13 @@ def get_field_values(keyword: str):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def get_coordinates(planet: str):
+    try:
+        query = f'SELECT rastr, decstr FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) = ? LIMIT 1'
+        res = db.execute_query(query, [planet])
+        return res.fetchone()
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None, None

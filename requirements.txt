@@ -4,3 +4,5 @@ googlesearch-python
 matplotlib~=3.9.0
 selenium
 beautifulsoup4
+astroquery
+astropy

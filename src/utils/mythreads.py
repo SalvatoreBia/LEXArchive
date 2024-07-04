@@ -69,11 +69,20 @@ class NewsFetcher(threading.Thread):
 
 class ArchiveUpdater(threading.Thread):
 
-    def __init__(self, bot, ids: list, lock: threading.RLock):
+    def __init__(self, bot=None, ids=None , lock=None):
         super().__init__()
         self._bot = bot
         self._ids = ids
         self._sleeping = False
+        self._sleep_lock = lock
+
+    def set_bot(self, bot):
+        self._bot = bot
+
+    def set_ids(self, ids):
+        self._ids = ids
+
+    def set_lock(self, lock):
         self._sleep_lock = lock
 
     def add_id(self, id: int):
