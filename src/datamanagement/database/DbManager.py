@@ -204,3 +204,37 @@ def get_random_planet():
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def get_nearest_planets():
+    try:
+        query = (
+            'SELECT pl_name, CAST(sy_dist AS REAL)'
+            'FROM ps '
+            'WHERE sy_dist IS NOT NULL AND sy_dist != "" '
+            'GROUP BY pl_name '
+            'ORDER BY MIN(CAST(sy_dist AS REAL)) ASC '
+            'LIMIT 3'
+        )
+        res = db.execute_query(query)
+        return res.fetchall() if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+def get_farthest_planets():
+    try:
+        query = (
+            'SELECT pl_name, CAST(sy_dist AS REAL)'
+            'FROM ps '
+            'WHERE sy_dist IS NOT NULL AND sy_dist != "" '
+            'GROUP BY pl_name '
+            'ORDER BY MIN(CAST(sy_dist AS REAL)) DESC '
+            'LIMIT 3'
+        )
+        res = db.execute_query(query)
+        return res.fetchall() if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None

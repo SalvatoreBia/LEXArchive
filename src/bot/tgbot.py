@@ -132,8 +132,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/fields - List all available fields\n"
         "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
         "/random - Test your luck\n"
-        "/near - Get the nearest planet(s) to earth\n"
-        "/far - Get the farthest planet(s) to earth\n"
+        "/near - Get the nearest planets to earth\n"
+        "/far - Get the farthest planets to earth\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
     )
@@ -436,7 +436,38 @@ async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     data = dict(zip(keys, planet))
     msg = text.planet_spec_format(data)
-    print(msg)
+    await send(update, context, msg, True)
+
+
+async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
+    if len(context.args) != 0:
+        return
+
+    command_called = update.message.text
+    if command_called == '/near':
+        top3 = db.get_nearest_planets()
+    else:
+        top3 = db.get_farthest_planets()
+
+    if top3 is None:
+        return
+
+    msg = f'*According to the data, the {'nearest' if command_called == '/near' else 'farthest'} planets are:*\n\n'
+    index = 1
+    for p in top3:
+        msg += f'*{index}.* {p[0]}, ~{p[1]} parsecs distant.\n'
+        index += 1
+
     await send(update, context, msg, True)
 
 
@@ -580,6 +611,8 @@ def run() -> None:
     application.add_handler(CommandHandler('fields', fields))
     application.add_handler(CommandHandler('locate', locate))
     application.add_handler(CommandHandler('random', rand))
+    application.add_handler(CommandHandler('near', distance_endpoint))
+    application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))

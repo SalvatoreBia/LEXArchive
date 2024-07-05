@@ -1,3 +1,6 @@
+import re
+
+
 def htable_format(headers: list, rows: list, exceeds: bool) -> str:
     head = '''
                 <head>
@@ -63,10 +66,17 @@ def htable_format(headers: list, rows: list, exceeds: bool) -> str:
     return head + table
 
 
-# TODO aggiustare
 def planet_spec_format(planet: dict) -> str:
     string = ''
+    link_regex = r'href=([^\s]+)'
+    anchor_text_regex = r'>(.*?)<'
     for key in planet:
-        string += f'*{key.replace('*', '\\*').replace('[', '\\[')}* -> _{planet[key] if planet[key] != '' else 'Empty'}_\n'
+        if key == 'Planetary Parameter Reference':
+            link_match = re.search(link_regex, planet[key])
+            text_match = re.search(anchor_text_regex, planet[key])
+            if link_match and text_match:
+                string += f'*{key}* → [{text_match.group(1)}]({link_match.group(1)})'
+        else:
+            string += f'*{key.replace('*', '·')}* → _{planet[key] if planet[key] != '' else 'Empty'}_\n'
 
     return string
