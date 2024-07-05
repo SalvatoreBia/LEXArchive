@@ -1,21 +1,16 @@
-# Ignora le cartelle degli ambienti virtuali
 .venv/
 venv/
 ENV/
 env/
 
-# Ignora le cartelle di cache di Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 
-# Ignora file di log
 *.log
 
-# Ignora altre cartelle e file specifici
 .DS_Store
 .idea/
 
-# ignora file token
 config/token.txt

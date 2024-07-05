@@ -4,7 +4,6 @@ import datetime
 
 class Database:
     _instance = None
-    _state = -1
     _LIMIT = 20
 
     def __new__(cls):
@@ -192,3 +191,16 @@ def get_coordinates(planet: str):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None, None
+
+
+def get_random_planet():
+    try:
+        query = (
+            'SELECT pl_name, pl_eqt, pl_insol, pl_bmasse, pl_orbper, pl_orbeccen, st_teff, pl_refname '
+            'FROM PS ORDER BY RANDOM() LIMIT 1'
+        )
+        res = db.execute_query(query)
+        return res.fetchone() if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None

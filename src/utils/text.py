@@ -61,3 +61,12 @@ def htable_format(headers: list, rows: list, exceeds: bool) -> str:
                   '<a href="https://exoplanetarchive.ipac.caltech.edu/cgi-bin/TblView/nph-tblView?app=ExoTbls&config'
                   '=PS" target="_blank">visit the official NASA\'s website</a>')
     return head + table
+
+
+# TODO aggiustare
+def planet_spec_format(planet: dict) -> str:
+    string = ''
+    for key in planet:
+        string += f'*{key.replace('*', '\\*').replace('[', '\\[')}* -> _{planet[key] if planet[key] != '' else 'Empty'}_\n'
+
+    return string

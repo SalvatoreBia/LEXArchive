@@ -121,7 +121,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         updater.add_id(chat)
 
     msg = (
-        "Welcome to the Exoplanet Bot! Here are the available commands:\n\n"
+        "Here are the available commands:\n\n"
         "/start - Welcome message\n"
         "/count - Count total records in the database\n"
         "/pcount - Count total discovered exoplanets\n"
@@ -130,6 +130,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/table <planet_name> - Get detailed table of a specific planet\n"
         "/plot <field> - Plot distribution of a specific field\n"
         "/fields - List all available fields\n"
+        "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
+        "/random - Test your luck\n"
+        "/near - Get the nearest planet(s) to earth\n"
+        "/far - Get the farthest planet(s) to earth\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
     )
@@ -408,6 +412,34 @@ async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
+    planet = db.get_random_planet()
+    keys = (
+        fields_['pl_name'],
+        fields_['pl_eqt'],
+        fields_['pl_insol'],
+        fields_['pl_bmasse'],
+        fields_['pl_orbper'],
+        fields_['pl_orbeccen'],
+        fields_['st_teff'],
+        fields_['pl_refname']
+    )
+    data = dict(zip(keys, planet))
+    msg = text.planet_spec_format(data)
+    print(msg)
+    await send(update, context, msg, True)
+
+
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
@@ -547,6 +579,7 @@ def run() -> None:
     application.add_handler(CommandHandler('plot', plot))
     application.add_handler(CommandHandler('fields', fields))
     application.add_handler(CommandHandler('locate', locate))
+    application.add_handler(CommandHandler('random', rand))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
