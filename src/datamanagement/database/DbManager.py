@@ -88,6 +88,19 @@ def delete(rows: list):
         return False
 
 
+def custom_query(fields: str, constraints):
+    try:
+        query = f'SELECT {fields} FROM ps'
+        if constraints is not None:
+            query += f' WHERE {constraints}'
+        query += ' LIMIT 200'
+        res = db.execute_query(query)
+        return [row for row in res.fetchall()] if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
 def count():
     try:
         query = 'SELECT COUNT(id) FROM ps'
