@@ -471,6 +471,10 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await send(update, context, msg, True)
 
 
+async def temp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)

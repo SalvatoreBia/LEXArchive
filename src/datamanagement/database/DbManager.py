@@ -12,8 +12,8 @@ class Database:
         return Database._instance
 
     def __init__(self):
-        self.DUMP = 'config/dump.txt'
-        self.DB = 'archive/db.json'
+        self.DUMP = '../../../config/dump.txt'
+        self.DB = '../../../archive/db.json'
         self.conn = None
         self.cursor = None
         self._setup()
@@ -22,7 +22,9 @@ class Database:
         self.conn = sqlite3.connect(self.DB, check_same_thread=False)
         self.cursor = self.conn.cursor()
         with open(self.DUMP, 'r') as file:
-            self.cursor.execute(file.read())
+            statements = file.read().strip().split('~')
+            for st in statements:
+                self.cursor.execute(st)
         self.conn.commit()
 
     def execute_query(self, query, params=None):
@@ -43,15 +45,14 @@ class Database:
 db = Database()
 
 
-def insert(rows: list):
+def insert(table: str, n: int, row: list):
     try:
-        query = '''
-                    INSERT INTO ps VALUES 
-                    (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                '''
-        for row in rows:
-            res = db.execute_query(query, row)
-        return True
+        query = (
+            f'INSERT INTO {table} VALUES '
+            f'({','.join(['?'] * n)})'
+        )
+        res = db.execute_query(query, row)
+        return res
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return False
@@ -60,7 +61,7 @@ def insert(rows: list):
 def set_current_date():
     date = datetime.datetime.now().strftime('%Y-%m-%d')
     try:
-        query = 'UPDATE ps SET last_write = ?'
+        query = 'UPDATE pscomppars SET last_write = ?'
         res = db.execute_query(query, [date])
         return True
     except sqlite3.Error as e:
@@ -70,7 +71,7 @@ def set_current_date():
 
 def get_last_date():
     try:
-        query = 'SELECT last_write FROM ps LIMIT 1'
+        query = 'SELECT last_write FROM pscomppars LIMIT 1'
         res = db.execute_query(query)
         return res.fetchone()[0] if res else None
     except sqlite3.Error as e:
@@ -101,9 +102,9 @@ def custom_query(fields: str, constraints):
         return None
 
 
-def count():
+def count(table: str):
     try:
-        query = 'SELECT COUNT(id) FROM ps'
+        query = f'SELECT COUNT(*) FROM {table}'
         res = db.execute_query(query)
         return res.fetchone()[0] if res else -1
     except sqlite3.Error as e:
