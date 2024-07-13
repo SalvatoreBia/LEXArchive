@@ -14,6 +14,8 @@ class Database:
     def __init__(self):
         self.DUMP = '../../../config/dump.txt'
         self.DB = '../../../archive/db.json'
+        self.PS_SIZE = 41
+        self.PS_COMPPARS_SIZE = 34
         self.conn = None
         self.cursor = None
         self._setup()
@@ -45,11 +47,11 @@ class Database:
 db = Database()
 
 
-def insert(table: str, n: int, row: list):
+def insert(table: str, row: list):
     try:
         query = (
             f'INSERT INTO {table} VALUES '
-            f'({','.join(['?'] * n)})'
+            f'({','.join(['?'] * (db.PS_SIZE if table == 'ps' else db.PS_COMPPARS_SIZE))})'
         )
         res = db.execute_query(query, row)
         return res
@@ -252,3 +254,24 @@ def get_farthest_planets():
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def check_names_list(l: list):
+    temp = {}
+    for elem in l:
+        temp[elem] = None
+
+    query = 'SELECT pl_name FROM pscomppars'
+    res = db.execute_query(query)
+    to_delete = []
+    for name in [row[0] for row in res.fetchall()]:
+        if name in temp:
+
+            del temp[name]
+        else:
+            to_delete.append(name)
+
+    if len(temp) == 0:
+        return [], []
+
+    return [name for name in temp.keys()], to_delete

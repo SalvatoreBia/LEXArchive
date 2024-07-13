@@ -79,3 +79,16 @@ CREATE TABLE IF NOT EXISTS ps (
  releasedate TEXT,
  FOREIGN KEY(id) REFERENCES pscomppars(id)
 );
+~
+CREATE TRIGGER IF NOT EXISTS linkPStoPSCOMPPARS
+AFTER INSERT ON ps
+FOR EACH ROW
+BEGIN
+    UPDATE ps
+    SET id = (
+        SELECT temp.id
+        FROM pscomppars AS temp
+        WHERE pl_name = NEW.pl_name
+    )
+    WHERE rowid = NEW.rowid;
+END;

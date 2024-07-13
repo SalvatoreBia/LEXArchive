@@ -44,32 +44,45 @@ def form_rows(csv_string):
     return matrix
 
 
-# TODO DA FINIRE
+def form_list(csv_string):
+    f = io.StringIO(csv_string)
+    reader = csv.reader(f)
+    next(reader)
+    return [row[0] for row in list(reader)]
+
+
+# TODO da finire
 def update():
-    query = 'select+count%28*%29+from+pscomppars&format=csv'
-    r = requests.get(BASE_URL + query)
-    pscomppars_len = r.text.split('\n')[1]
-    db_pscomppars_len = db.count('pscomppars')
-    db_ps_len = db.count('ps_len')
-    if db_pscomppars_len == 0 or pscomppars_len != db_pscomppars_len:
-        query = f'select+{pscomppars_fields}+from+pscomppars+top+3&format=csv'
-        r = requests.get(BASE_URL + query)
-        if r.status_code != 200:
-            return
+    pscomppars_count = db.count('pscomppars')
+    count_query = 'select+count%28*%29+from+pscomppars&format=csv'
+    count_response = requests.get(BASE_URL + count_query)
+    tap_count = int(count_response.text.split('\n')[1])
+    ps_count = db.count('ps')
 
-        for row in form_rows(r.text):
-            db.insert('pscomppars', len(row)+2, [None]+row+[None])
+    if pscomppars_count == 0:
+        query = f'select+{pscomppars_fields}+from+pscomppars&format=csv'
+        response = requests.get(BASE_URL + query)
+        for row in form_rows(response.text):
+            db.insert('pscomppars', [None] + row + [None])
+    elif pscomppars_count != tap_count:
+        query = 'select+pl_name+from+pscomppars&format=csv'
+        response = requests.get(BASE_URL + query)
+        names_list = form_list(response.text)
+        to_get, to_delete = db.check_names_list(names_list)
+        if len(to_get) > 0:
+            fmt_list = ','.join(f"'{name}'" for name in to_get)
+            query = f'select+{pscomppars_fields}+from+pscomppars+where+pl_name+in+%28{fmt_list}%29&format=csv'
+            response = requests.get(BASE_URL + query)
+            for row in form_rows(response.text):
+                db.insert('pscomppars', [None] + row + [None])
 
-    if db_ps_len == 0:
-        query = f'select+{ps_fields}+from+ps+top+3&format=csv'
-        r = requests.get(BASE_URL + query)
-        if r.status_code != 200:
-            return
+    if ps_count == 0:
+        query = f'select+{ps_fields}+from+ps&format=csv'
+        response = requests.get(BASE_URL + query)
+        for row in form_rows(response.text):
+            db.insert('ps', [None] + row)
 
-        for row in form_rows(r.text):
-            db.insert('ps', len(row)+1, [None]+row)
-    else:
-        date = db.get_last_date()
+    print('updated')
 
 
 if __name__ == '__main__':
