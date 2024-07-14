@@ -10,7 +10,7 @@ LOOP = asyncio.get_event_loop()
 
 
 class NewsScheduler(threading.Thread):
-    _FILE = 'data/subscribers.txt'
+    _FILE = 'resources/data/subscribers.txt'
 
     def __init__(self, bot, sub_lock: threading.RLock, news_lock: threading.RLock):
         super().__init__(daemon=True)
@@ -48,7 +48,7 @@ class NewsScheduler(threading.Thread):
 
 
 class NewsFetcher(threading.Thread):
-    _FILE = 'data/news.txt'
+    _FILE = 'resources/data/news.txt'
 
     def __init__(self, lock: threading.RLock):
         super().__init__()

@@ -15,7 +15,7 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text, mythreads, research
+from src.utils import text, mythreads, research, img3d, lex_dtypes
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -471,8 +471,36 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await send(update, context, msg, True)
 
 
-async def temp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+# function that returns an image representing the planetary system
+# TODO DA FINIRE
+async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
+    if len(context.args) == 0:
+        return
+
+    name = ''.join(context.args).lower()
+    host_iterable, planets_iterable = db.get_planetary_system_info(name)
+    if host_iterable is None:
+        return
+
+    host = lex_dtypes.Host()
+    host.from_iterable(host_iterable)
+    planets = []
+    for pl in planets_iterable:
+        temp = lex_dtypes.Planet()
+        temp.from_iterable(pl)
+        planets.append(temp)
+
+    img3d.generate_bpy_script(host, planets)
 
 
 # inline query to retrieve information about database fields meaning
@@ -617,6 +645,7 @@ def run() -> None:
     application.add_handler(CommandHandler('random', rand))
     application.add_handler(CommandHandler('near', distance_endpoint))
     application.add_handler(CommandHandler('far', distance_endpoint))
+    application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
