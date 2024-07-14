@@ -24,10 +24,10 @@ logging.basicConfig(
 
 # _____________________________VARIABLES______________________________________
 
-TOKEN_PATH = 'config/token.txt'
-FIELDS_PATH = 'config/fields.txt'
-SUB_PATH = 'data/subscribers.txt'
-DEF_PATH = 'config/definitions.txt'
+TOKEN_PATH = 'resources/config/token.txt'
+FIELDS_PATH = 'resources/config/fields.txt'
+SUB_PATH = 'resources/data/subscribers.txt'
+DEF_PATH = 'resources/config/definitions.txt'
 search_data = {}
 SEARCH_LIMIT = 25
 fields_ = {}
@@ -152,7 +152,7 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, msg, False)
         return
 
-    rows = db.count()
+    rows = db.count('ps')
     if rows != -1:
         msg = f'The archive counts *{rows}* records.'
         await send(update, context, msg, True)
@@ -170,7 +170,7 @@ async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, msg, False)
         return
 
-    rows = db.count_pl()
+    rows = db.count('pscomppars')
     if rows != -1:
         msg = f'The archive counts *{rows}* different exoplanets discovered.'
         await send(update, context, msg, True)

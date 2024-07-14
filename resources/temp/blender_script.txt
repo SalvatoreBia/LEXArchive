@@ -1,0 +1,29 @@
+import bpy
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+bpy.ops.outliner.orphans_purge()
+
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=4)
+bpy.ops.object.shade_smooth()
+host = bpy.context.object
+
+bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=7)
+orbit = bpy.context.object
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.5)
+bpy.ops.object.shade_smooth()
+planet = bpy.context.object
+planet.parent = orbit
+orbit_rad = orbit.data.vertices[0].co.length
+planet.location = (orbit_rad, 0, 0)
+
+bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=15)
+orbit = bpy.context.object
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=3)
+bpy.ops.object.shade_smooth()
+planet = bpy.context.object
+planet.parent = orbit
+orbit_rad = orbit.data.vertices[0].co.length
+planet.location = (orbit_rad, 0, 0)
+
+bpy.context.view_layer.update()

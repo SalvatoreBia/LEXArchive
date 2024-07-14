@@ -4,7 +4,7 @@ import io
 import src.datamanagement.database.DbManager as db
 
 BASE_URL = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query='
-FIELDS_PATH = 'config/fields.txt'
+FIELDS_PATH = 'resources/config/fields.txt'
 ps_fields = ''
 pscomppars_fields = ''
 
