@@ -4,7 +4,7 @@ import io
 import src.datamanagement.database.DbManager as db
 
 BASE_URL = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query='
-FIELDS_PATH = '../../../config/fields.txt'
+FIELDS_PATH = 'config/fields.txt'
 ps_fields = ''
 pscomppars_fields = ''
 
@@ -51,7 +51,13 @@ def form_list(csv_string):
     return [row[0] for row in list(reader)]
 
 
-# TODO da finire
+def _check_names_list(tap_list, db_list):
+    temp = set(tap_list)
+    to_delete = list(db_list - temp)
+    missing = list(temp - db_list)
+    return missing, to_delete
+
+
 def update():
     pscomppars_count = db.count('pscomppars')
     count_query = 'select+count%28*%29+from+pscomppars&format=csv'
@@ -68,23 +74,29 @@ def update():
         query = 'select+pl_name+from+pscomppars&format=csv'
         response = requests.get(BASE_URL + query)
         names_list = form_list(response.text)
-        to_get, to_delete = db.check_names_list(names_list)
+        db_names_list = db.get_names_list()
+        to_get, to_delete = _check_names_list(names_list, db_names_list)
         if len(to_get) > 0:
             fmt_list = ','.join(f"'{name}'" for name in to_get)
             query = f'select+{pscomppars_fields}+from+pscomppars+where+pl_name+in+%28{fmt_list}%29&format=csv'
             response = requests.get(BASE_URL + query)
             for row in form_rows(response.text):
                 db.insert('pscomppars', [None] + row + [None])
+        if len(to_delete) > 0:
+            for pl in to_delete:
+                db.delete_planet(pl)
 
     if ps_count == 0:
         query = f'select+{ps_fields}+from+ps&format=csv'
         response = requests.get(BASE_URL + query)
         for row in form_rows(response.text):
             db.insert('ps', [None] + row)
+    else:
+        last_write = db.get_last_date()
+        query = f'select+{ps_fields}+from+ps+where+releasedate%3E%3D\'{last_write}\'+or+rowupdate%3E%3D\'{last_write}\'&format=csv'
+        response = requests.get(BASE_URL + query)
+        for row in form_rows(response.text):
+            db.insert('ps', [None] + row)
 
+    db.set_current_date()
     print('updated')
-
-
-if __name__ == '__main__':
-    load_fields()
-    update()

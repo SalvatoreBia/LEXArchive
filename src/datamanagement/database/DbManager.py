@@ -12,8 +12,8 @@ class Database:
         return Database._instance
 
     def __init__(self):
-        self.DUMP = '../../../config/dump.txt'
-        self.DB = '../../../archive/db.json'
+        self.DUMP = 'config/dump.txt'
+        self.DB = 'archive/db.json'
         self.PS_SIZE = 41
         self.PS_COMPPARS_SIZE = 34
         self.conn = None
@@ -81,10 +81,18 @@ def get_last_date():
         return None
 
 
-def delete(rows: list):
+def delete_planet(name: str):
     try:
-        query = 'DELETE FROM ps WHERE pl_name = ?'
-        res = db.execute_query(query, rows)
+        query = f'SELECT id FROM pscomppars WHERE pl_name = ?'
+        res = db.execute_query(query, [name])
+        row_id = res.fetchone()[0] if res else -1
+        if row_id == -1:
+            return False
+
+        query = f'DELETE FROM ps WHERE id = ?'
+        res = db.execute_query(query, [row_id])
+        query = f'DELETE FROM pscomppars WHERE id = ?'
+        res = db.execute_query(query, [row_id])
         return True
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
@@ -256,22 +264,11 @@ def get_farthest_planets():
         return None
 
 
-def check_names_list(l: list):
-    temp = {}
-    for elem in l:
-        temp[elem] = None
-
-    query = 'SELECT pl_name FROM pscomppars'
-    res = db.execute_query(query)
-    to_delete = []
-    for name in [row[0] for row in res.fetchall()]:
-        if name in temp:
-
-            del temp[name]
-        else:
-            to_delete.append(name)
-
-    if len(temp) == 0:
-        return [], []
-
-    return [name for name in temp.keys()], to_delete
+def get_names_list():
+    try:
+        query = 'SELECT pl_name FROM pscomppars'
+        res = db.execute_query(query)
+        return [row[0] for row in res.fetchall()] if res else []
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
