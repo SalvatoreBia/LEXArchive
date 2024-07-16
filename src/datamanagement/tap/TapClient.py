@@ -64,17 +64,22 @@ def update():
     count_response = requests.get(BASE_URL + count_query)
     tap_count = int(count_response.text.split('\n')[1])
     ps_count = db.count('ps')
+    actually_updated = False
 
+    # get all table if it's empty
     if pscomppars_count == 0:
         query = f'select+{pscomppars_fields}+from+pscomppars&format=csv'
         response = requests.get(BASE_URL + query)
         for row in form_rows(response.text):
             db.insert('pscomppars', [None] + row + [None])
+            actually_updated = True
+
+    # if the counts don't match, the table only needs an update
     elif pscomppars_count != tap_count:
         query = 'select+pl_name+from+pscomppars&format=csv'
         response = requests.get(BASE_URL + query)
         names_list = form_list(response.text)
-        db_names_list = db.get_names_list()
+        db_names_list = db.get_names_set()
         to_get, to_delete = _check_names_list(names_list, db_names_list)
         if len(to_get) > 0:
             fmt_list = ','.join(f"'{name}'" for name in to_get)
@@ -82,21 +87,37 @@ def update():
             response = requests.get(BASE_URL + query)
             for row in form_rows(response.text):
                 db.insert('pscomppars', [None] + row + [None])
+                actually_updated = True
         if len(to_delete) > 0:
             for pl in to_delete:
                 db.delete_planet(pl)
+                actually_updated = True
 
+    # get all table if it's empty
     if ps_count == 0:
         query = f'select+{ps_fields}+from+ps&format=csv'
         response = requests.get(BASE_URL + query)
         for row in form_rows(response.text):
             db.insert('ps', [None] + row)
+            actually_updated = True
+
     else:
         last_write = db.get_last_date()
-        query = f'select+{ps_fields}+from+ps+where+releasedate%3E%3D\'{last_write}\'+or+rowupdate%3E%3D\'{last_write}\'&format=csv'
+        query = f'select+distinct+pl_name+from+ps+where+releasedate%3E=\'{last_write}\'+or+rowupdate%3E=\'{last_write}\'&format=csv'
         response = requests.get(BASE_URL + query)
-        for row in form_rows(response.text):
-            db.insert('ps', [None] + row)
+        to_delete = form_list(response.text)
+        fmt_list = ','.join(f"'{elem}'" for elem in to_delete)
+        query = f'select+{ps_fields}+from+ps+where+pl_name+in+%28{fmt_list}%29&format=csv'
+        if len(to_delete) > 0:
+            response = requests.get(BASE_URL + query)
+            rows = form_rows(response.text)
+            for planet in to_delete:
+                db.delete_planet(planet, ps_only=True)
 
-    db.set_current_date()
-    print('updated')
+            for row in rows:
+                db.insert('ps', [None] + row)
+            actually_updated = True
+
+    if actually_updated:
+        db.set_current_date()
+        print('updated')

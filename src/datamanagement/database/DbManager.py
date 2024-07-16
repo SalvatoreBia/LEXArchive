@@ -68,6 +68,7 @@ def set_current_date():
         return True
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
+        print(f"An error occurred: {e}")
         return False
 
 
@@ -81,7 +82,7 @@ def get_last_date():
         return None
 
 
-def delete_planet(name: str):
+def delete_planet(name: str, ps_only=False):
     try:
         query = f'SELECT id FROM pscomppars WHERE pl_name = ?'
         res = db.execute_query(query, [name])
@@ -91,9 +92,10 @@ def delete_planet(name: str):
 
         query = f'DELETE FROM ps WHERE id = ?'
         res = db.execute_query(query, [row_id])
-        query = f'DELETE FROM pscomppars WHERE id = ?'
-        res = db.execute_query(query, [row_id])
-        return True
+        if not ps_only:
+            query = f'DELETE FROM pscomppars WHERE id = ?'
+            res = db.execute_query(query, [row_id])
+        return res
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return False
@@ -254,11 +256,11 @@ def get_farthest_planets():
         return None
 
 
-def get_names_list():
+def get_names_set():
     try:
         query = 'SELECT pl_name FROM pscomppars'
         res = db.execute_query(query)
-        return [row[0] for row in res.fetchall()] if res else []
+        return {row[0] for row in res.fetchall()} if res else set()
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
