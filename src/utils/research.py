@@ -11,7 +11,7 @@ from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
 
-FILE = 'data/news.txt'
+FILE = 'resources/data/news.txt'
 
 
 def fetch_news(keyword='exoplanets news'):
@@ -42,6 +42,13 @@ def get_rand_news():
     return random.choice(links)
 
 
+def get_constellation_from_coordinates(coord, convert_to_sky_coord=False):
+    if not convert_to_sky_coord:
+        return get_constellation(coord)
+    sky_coord = SkyCoord(ra=coord[0], dec=coord[1], unit=(u.hourangle, u.deg))
+    return get_constellation(sky_coord)
+
+
 def fetch_sky_image(pair):
     coord = SkyCoord(ra=pair[0], dec=pair[1], unit=(u.hourangle, u.deg))
     image_list = SkyView.get_images(position=coord, survey=['DSS'], pixels=750)
@@ -51,16 +58,11 @@ def fetch_sky_image(pair):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection=wcs)
     ax.imshow(data, origin='lower', cmap='gray')
-
     ax.plot(coord.ra.deg, coord.dec.deg, 'ro', transform=ax.get_transform('world'))
     plt.xlabel('RA (degrees)')
     plt.ylabel('Dec (degrees)')
     plt.grid(color='white', linestyle='--', linewidth=0.5)
-    plt.title(f'Night Sky Image (constellation: {get_constellation(coord)})')
-    plt.xlabel('RA (degrees)')
-    plt.ylabel('Dec (degrees)')
-    plt.grid(color='white', linestyle='--', linewidth=0.5)
-    plt.title(f'Night Sky Image (constellation: {get_constellation(coord)})')
+    plt.title(f'Constellation: {get_constellation_from_coordinates(coord, convert_to_sky_coord=False)}')
 
     buffer = BytesIO()
     plt.savefig(buffer, format='png')

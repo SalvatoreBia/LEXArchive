@@ -71,7 +71,7 @@ def update():
         query = f'select+{pscomppars_fields}+from+pscomppars&format=csv'
         response = requests.get(BASE_URL + query)
         for row in form_rows(response.text):
-            db.insert('pscomppars', [None] + row + [None])
+            db.insert('pscomppars', [None] + row + [None, None])
             actually_updated = True
 
     # if the counts don't match, the table only needs an update
@@ -101,6 +101,7 @@ def update():
             db.insert('ps', [None] + row)
             actually_updated = True
 
+    # or update the table
     else:
         last_write = db.get_last_date()
         query = f'select+distinct+pl_name+from+ps+where+releasedate%3E=\'{last_write}\'+or+rowupdate%3E=\'{last_write}\'&format=csv'

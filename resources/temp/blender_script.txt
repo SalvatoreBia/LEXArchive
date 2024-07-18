@@ -4,41 +4,19 @@ bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
 bpy.ops.outliner.orphans_purge()
 
-bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.005627065385764211)
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.0639904295108393)
 bpy.ops.object.shade_smooth()
 host = bpy.context.object
 
 bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=1)
 orbit = bpy.context.object
-orbit.scale = (3.6, 3.5826710929137775, 1)
+orbit.scale = (1.178, 1.144150351791232, 1)
 bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.0006047425646948062)
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.0005195675555828617)
 bpy.ops.object.shade_smooth()
 planet = bpy.context.object
 planet.parent = orbit
 orbit_rad = orbit.data.vertices[0].co.length
-planet.location = (3.6, 0, 0)
-
-bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=1)
-orbit = bpy.context.object
-orbit.scale = (11.6, 11.450557366346846, 1)
-bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.0005749313115056256)
-bpy.ops.object.shade_smooth()
-planet = bpy.context.object
-planet.parent = orbit
-orbit_rad = orbit.data.vertices[0].co.length
-planet.location = (11.6, 0, 0)
-
-bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=1)
-orbit = bpy.context.object
-orbit.scale = (2.1, 2.0989245246077814, 1)
-bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius=0.000562155060138834)
-bpy.ops.object.shade_smooth()
-planet = bpy.context.object
-planet.parent = orbit
-orbit_rad = orbit.data.vertices[0].co.length
-planet.location = (2.1, 0, 0)
+planet.location = (1.178, 0, 0)
 
 bpy.context.view_layer.update()

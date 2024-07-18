@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS pscomppars (
  sy_vmag REAL,
  sy_kmag REAL,
  sy_gaiamag REAL,
+ constellation TEXT,
  last_write TEXT
 );
 ~
@@ -92,3 +93,9 @@ BEGIN
     )
     WHERE rowid = NEW.rowid;
 END;
+~
+CREATE INDEX IF NOT EXISTS idx_pscomppars_pl_name ON pscomppars(pl_name);
+~
+CREATE INDEX IF NOT EXISTS idx_ps_pl_name ON ps(pl_name);
+~
+CREATE INDEX IF NOT EXISTS idx_pscomppars_constellation ON pscomppars(constellation);

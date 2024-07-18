@@ -1,10 +1,15 @@
 import sqlite3
 import datetime
+from src.utils import research
 
 
 class Database:
     _instance = None
     _LIMIT = 20
+    _TABLE_SIZES = {
+        'ps': 41,
+        'pscomppars': 35
+    }
 
     def __new__(cls):
         if cls._instance is None:
@@ -13,9 +18,7 @@ class Database:
 
     def __init__(self):
         self.DUMP = 'resources/config/dump.txt'
-        self.DB = 'resources/archive/db.json'
-        self.PS_SIZE = 41
-        self.PS_COMPPARS_SIZE = 34
+        self.DB = 'resources/archive/db.sqlite'
         self.conn = None
         self.cursor = None
         self._setup()
@@ -40,6 +43,10 @@ class Database:
     def limit():
         return Database._LIMIT
 
+    @staticmethod
+    def get_table_size(table: str):
+        return Database._TABLE_SIZES[table] if table in Database._TABLE_SIZES else -1
+
     def close(self):
         self.conn.close()
 
@@ -47,13 +54,24 @@ class Database:
 db = Database()
 
 
+# TODO da migliorare il ritrovamento di ra e dec
 def insert(table: str, row: list):
     try:
         query = (
             f'INSERT INTO {table} VALUES '
-            f'({','.join(['?'] * (db.PS_SIZE if table == 'ps' else db.PS_COMPPARS_SIZE))})'
+            f'({','.join(['?'] * Database.get_table_size(table))})'
         )
         res = db.execute_query(query, row)
+        if table == 'pscomppars':
+            rowid = res.lastrowid
+            ra, dec = row[27], row[28]
+            constellation = research.get_constellation_from_coordinates((ra, dec), convert_to_sky_coord=True)
+            query = (
+                'UPDATE pscomppars '
+                'SET constellation = ? WHERE id = ?'
+            )
+            res = db.execute_query(query, [constellation, rowid])
+
         return res
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
@@ -67,7 +85,6 @@ def set_current_date():
         res = db.execute_query(query, [date])
         return True
     except sqlite3.Error as e:
-        print(f"An error occurred: {e}")
         print(f"An error occurred: {e}")
         return False
 
