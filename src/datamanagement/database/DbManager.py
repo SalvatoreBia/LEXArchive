@@ -99,6 +99,16 @@ def get_last_date():
         return None
 
 
+def exists(planet: str):
+    try:
+        query = 'SELECT EXISTS(SELECT 1 FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?)'
+        res = db.execute_query(query, [planet])
+        return res.fetchone()[0] if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
 def delete_planet(name: str, ps_only=False):
     try:
         query = f'SELECT id FROM pscomppars WHERE pl_name = ?'
@@ -299,3 +309,22 @@ def get_planetary_system_info(pl_name: str):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None, None
+
+
+def get_habitability_info(planet: str):
+    try:
+        check_exist = exists(planet)
+        if not check_exist or check_exist is None:
+            return None
+
+        query = (
+            'SELECT pl_rade, pl_bmasse, pl_orbper, pl_orbsmax, pl_orbeccen,'
+            ' pl_insol, pl_eqt, st_teff, st_rad, st_mass, st_spectype, st_met '
+            'FROM pscomppars '
+            'WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
+        )
+        res = db.execute_query(query, [planet])
+        return [row for row in res.fetchall()] if res else None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None

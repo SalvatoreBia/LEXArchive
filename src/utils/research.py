@@ -10,8 +10,11 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
+import math
+
 
 FILE = 'resources/data/news.txt'
+SOLAR_TEFF = 5778
 
 
 def fetch_news(keyword='exoplanets news'):
@@ -69,3 +72,23 @@ def fetch_sky_image(pair):
     buffer.seek(0)
     plt.close(fig)
     return buffer
+
+
+def calculate_habitability_index(data):
+    luminosity = (data['st_rad']**2) * ((data['st_teff']/SOLAR_TEFF)**4)
+    hab_zone_inner = round(math.sqrt(luminosity/1.1), 2)
+    hab_zone_outer = round(math.sqrt(luminosity/0.53), 2)
+    peri = data['pl_orbsmax'] * (1 - data['pl_orbeccen'])
+    apo = data['pl_orbsmax'] * (1 + data['pl_orbeccen'])
+    return (
+        hab_zone_inner <= peri <= hab_zone_outer and
+        hab_zone_inner <= apo <= hab_zone_outer
+    )
+
+
+if __name__ == '__main__':
+    data = {
+        'st_rad': 1,
+        'st_teff': 5800,
+    }
+    print(calculate_habitability_index(data))

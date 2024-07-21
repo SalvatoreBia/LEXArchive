@@ -96,6 +96,7 @@ class ArchiveUpdater(threading.Thread):
         with self._sleep_lock:
             self._sleeping = b
 
+    # TODO la lettura degli id non penso sia thread-safe
     def run(self):
         TapClient.load_fields()
         while True:

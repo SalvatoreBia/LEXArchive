@@ -607,6 +607,10 @@ async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text('Command not found.')
 
 
+async def temp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    data = db.find_all()
+
+
 def _read_token() -> str:
     with open(TOKEN_PATH, 'r') as file:
         return file.readline().strip()
@@ -647,6 +651,8 @@ def run() -> None:
     application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('sub', subscribe))
+    application.add_handler(CommandHandler('hab', temp))
+
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
