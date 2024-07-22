@@ -81,7 +81,6 @@ def calculate_habitability_index(data, threshold=0.5):
     def pl_gravity(mass, rad):
         return UG_CONST * (mass / rad ** 2)
 
-    # Initialize conditions and their weights
     conditions = {
         'inner_zone_condition': False,
         'outer_zone_condition': False,
@@ -92,19 +91,16 @@ def calculate_habitability_index(data, threshold=0.5):
         'spectral_type_condition': False
     }
 
-    # Calculate luminosity
     if data['st_rad'] is not None and data['st_teff'] is not None:
         luminosity = (data['st_rad'] ** 2) * ((data['st_teff'] / SOLAR_TEFF) ** 4)
     else:
         luminosity = None
 
-    # Calculate equilibrium temperature
     equilibrium_temperature = data['pl_eqt']
     if equilibrium_temperature is None and luminosity is not None and data['pl_orbsmax'] is not None:
         equilibrium_temperature = ((luminosity * (1 - ALBEDO)) / (
                 16 * math.pi * (data['pl_orbsmax'] ** 2) * 5.670374419e-8)) ** 0.25
 
-    # Habitable zone conditions
     if luminosity is not None:
         hab_zone_inner = round(math.sqrt(luminosity / 1.1), 2)
         hab_zone_outer = round(math.sqrt(luminosity / 0.53), 2)
@@ -114,28 +110,22 @@ def calculate_habitability_index(data, threshold=0.5):
             conditions['inner_zone_condition'] = hab_zone_inner <= peri <= hab_zone_outer
             conditions['outer_zone_condition'] = hab_zone_inner <= apo <= hab_zone_outer
 
-    # Gravity condition
     if data['pl_bmasse'] is not None and data['pl_rade'] is not None:
         gravity = pl_gravity(data['pl_bmasse'] * EARTH_MASS, data['pl_rade'] * EARTH_RAD)
         conditions['gravity_condition'] = 0.9 <= round(gravity, 1) / 9.8 <= 1.3
 
-    # Stellar temperature condition
     if data['st_teff'] is not None:
         conditions['temperature_condition'] = 3900 <= data['st_teff'] <= 7100
 
-    # Insolation flux condition
     if data['pl_insol'] is not None:
         conditions['insolation_flux_condition'] = 0.35 <= data['pl_insol'] <= 1.75
 
-    # Equilibrium temperature condition
     if equilibrium_temperature is not None:
         conditions['temp_habitability'] = 273 <= equilibrium_temperature <= 373
 
-    # Spectral type condition
     if data['st_spectype'] is not None:
         conditions['spectral_type_condition'] = 'G' in data['st_spectype'] or 'K' in data['st_spectype']
 
-    # Calculate the habitability index
     valid_conditions = {k: v for k, v in conditions.items() if v is not None}
     habitability_index = sum(valid_conditions.values()) / len(valid_conditions)
 
