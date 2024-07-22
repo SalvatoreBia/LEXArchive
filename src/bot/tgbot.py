@@ -503,6 +503,22 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     img3d.generate_bpy_script(host, planets)
 
 
+async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if len(context.args) == 0:
+        return
+
+    planet = ''.join(context.args).lower()
+    info = db.get_habitability_info(planet)
+    print(info)
+    if info is None:
+        await send(update, context, 'Ops... Nothing found.', False)
+
+    msg = research.calculate_habitability_index(info)
+    msg_chunks = [msg[i:i+4096] for i in range(0, len(msg), 4096)]
+    for chunk in msg_chunks:
+        await send(update, context, chunk, True)
+
+
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
@@ -607,10 +623,6 @@ async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text('Command not found.')
 
 
-async def temp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    data = db.find_all()
-
-
 def _read_token() -> str:
     with open(TOKEN_PATH, 'r') as file:
         return file.readline().strip()
@@ -651,7 +663,7 @@ def run() -> None:
     application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('sub', subscribe))
-    application.add_handler(CommandHandler('hab', temp))
+    application.add_handler(CommandHandler('hab', hab))
 
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))

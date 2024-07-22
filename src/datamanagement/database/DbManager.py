@@ -317,14 +317,25 @@ def get_habitability_info(planet: str):
         if not check_exist or check_exist is None:
             return None
 
+        hab_info = [
+            'st_rad',
+            'st_teff',
+            'st_spectype',
+            'pl_eqt',
+            'pl_orbsmax',
+            'pl_orbeccen',
+            'pl_bmasse',
+            'pl_rade',
+            'pl_insol'
+        ]
+
         query = (
-            'SELECT pl_rade, pl_bmasse, pl_orbper, pl_orbsmax, pl_orbeccen,'
-            ' pl_insol, pl_eqt, st_teff, st_rad, st_mass, st_spectype, st_met '
+            f'SELECT {','.join(hab_info)} '
             'FROM pscomppars '
             'WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
         )
         res = db.execute_query(query, [planet])
-        return [row for row in res.fetchall()] if res else None
+        return {key: val for key, val in zip(hab_info, res.fetchone())} if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
