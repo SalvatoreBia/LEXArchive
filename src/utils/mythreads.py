@@ -3,7 +3,7 @@ import time
 import asyncio
 import os
 from datetime import datetime
-from src.utils import research
+from src.utils import research, lex_dtypes, img3d
 from src.datamanagement.tap import TapClient
 
 LOOP = asyncio.get_event_loop()
@@ -13,7 +13,7 @@ class NewsScheduler(threading.Thread):
     _FILE = 'resources/data/subscribers.txt'
 
     def __init__(self, bot, sub_lock: threading.RLock, news_lock: threading.RLock):
-        super().__init__(daemon=True)
+        super().__init__()
         self._sub_lock = sub_lock
         self._news_lock = news_lock
         self._bot = bot
@@ -116,3 +116,16 @@ class ArchiveUpdater(threading.Thread):
             self._set_sleeping(True)
             time.sleep(86400)
             self._set_sleeping(False)
+
+
+class Img3dSubprocessExecutor(threading.Thread):
+
+    def __init__(self, limit):
+        super().__init__()
+        self.limit = limit
+        self.queue = lex_dtypes.BlockingQueue(self.limit)
+
+    def run(self):
+        while True:
+            call = self.queue.get()
+            img3d.run_blender_script(call)

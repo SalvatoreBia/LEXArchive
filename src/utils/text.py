@@ -1,6 +1,7 @@
 import re
 
 
+# TODO probabilmente sta facendo le query su pscomppars e non su ps
 def htable_format(headers: list, rows: list, exceeds: bool) -> str:
     head = '''
                 <head>

@@ -293,22 +293,17 @@ def get_names_set():
         return None
 
 
-def get_planetary_system_info(pl_name: str):
+def get_celestial_body_info(name: str, is_planet=True):
     try:
-        query = 'SELECT hostname, st_rad, st_teff FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
-        host_res = db.execute_query(query, [pl_name])
-        host_data = host_res.fetchone() if host_res else None
-        if host_data is None:
-            return None, None
+        query = 'SELECT pl_name FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
+        if not is_planet:
+            query = 'SELECT hostname, st_spectype FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
 
-        query = 'SELECT pl_name, pl_rade, pl_orbsmax, pl_orbeccen FROM pscomppars WHERE hostname = ?'
-        pl_res = db.execute_query(query, [host_data[0]])
-        planets = pl_res.fetchall() if pl_res else []
-        planets_data = [row for row in planets]
-        return host_data, planets_data
+        res = db.execute_query(query, [name])
+        return res.fetchone() if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None, None
+        return None
 
 
 def get_habitability_info(planet: str):

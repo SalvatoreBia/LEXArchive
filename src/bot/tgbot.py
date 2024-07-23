@@ -15,7 +15,7 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text, mythreads, research, img3d, lex_dtypes
+from src.utils import text, mythreads, research, img3d
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -28,6 +28,7 @@ TOKEN_PATH = 'resources/config/token.txt'
 FIELDS_PATH = 'resources/config/fields.txt'
 SUB_PATH = 'resources/data/subscribers.txt'
 DEF_PATH = 'resources/config/definitions.txt'
+IMG_DIR = 'resources/img/'
 search_data = {}
 SEARCH_LIMIT = 25
 fields_ = {}
@@ -106,10 +107,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         '🌌 *Welcome to LEXArchive!* 🚀\n\n'
         f'Hello, {update.effective_chat.effective_name}. '
         'Right here you can easily navigate the NASA\'s \'Planetary Systems\' public database, and I am here '
-        'to provide you easy access to it with my functionalities. You can consult the /cmds output for all the '
-        'available functionalities.\n\n'
-        'You can use /help to look at the available commands. If you\'re new and you wish to know more about what the database fields mean, you can make inline queries '
-        'that will help you clear your mind.'
+        'to provide you easy access to it with my functionalities. You can use /help to look at the available commands.\n\n'
+        'If you\'re new and you don\'t know what kind of data is being managed, you can use /fields to display all of the '
+        'info each record has, also you can make an inline query about these fields if you don\'t know what do they mean.'
     )
     await send(update, context, msg, True)
 
@@ -131,6 +131,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/plot <field> - Plot distribution of a specific field\n"
         "/fields - List all available fields\n"
         "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
+        "/show <name> <option> - Get 3D image representing a celestial body. Use the option -s if it is a star.\n"
         "/random - Test your luck\n"
         "/near - Get the nearest planets to earth\n"
         "/far - Get the farthest planets to earth\n"
@@ -486,23 +487,32 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, msg, False)
         return
 
-    if len(context.args) == 0:
+
+    if len(context.args) == 0 or ('-s' in context.args and (context.args.index('-s') != len(context.args) - 1 or context.args.count('-s') > 1)):
         return
 
-    name = ''.join(context.args).lower()
-    host_iterable, planets_iterable = db.get_planetary_system_info(name)
-    if host_iterable is None:
-        return
+    is_planet = False if context.args[-1] == '-s' else True
+    if not is_planet:
+        is_planet = False
+        args = context.args[:-1]
+    else:
+        args = context.args
+    name = ''.join(args).lower()
+    print(name)
 
-    host = lex_dtypes.Host()
-    host.from_iterable(host_iterable)
-    planets = []
-    for pl in planets_iterable:
-        temp = lex_dtypes.Planet()
-        temp.from_iterable(pl)
-        planets.append(temp)
+    celestial_body = db.get_celestial_body_info(name) if is_planet else db.get_celestial_body_info(name, is_planet=False)
+    if is_planet:
+        pass
+    else:
+        img3d.run_blender_star_script(update.effective_chat.id, celestial_body[0], celestial_body[1])
 
-    # img3d.generate_bpy_script(host, planets)
+    await context.bot.send_photo(
+        chat_id=update.effective_chat.id,
+        photo=open(f'{IMG_DIR}{update.effective_chat.id}.png', 'rb'),
+        caption=f'3d representation for the {'planet' if is_planet else 'star'} \"{name}\".'
+    )
+
+    img3d.delete_render_png(update.effective_chat.id)
 
 
 async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -511,7 +521,6 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     planet = ''.join(context.args).lower()
     info = db.get_habitability_info(planet)
-    print(info)
     if info is None:
         await send(update, context, 'Ops... Nothing found.', False)
 
