@@ -86,7 +86,7 @@ def update():
             query = f'select+{pscomppars_fields}+from+pscomppars+where+pl_name+in+%28{fmt_list}%29&format=csv'
             response = requests.get(BASE_URL + query)
             for row in form_rows(response.text):
-                db.insert('pscomppars', [None] + row + [None])
+                db.insert('pscomppars', [None] + row + [None, None])
                 actually_updated = True
         if len(to_delete) > 0:
             for pl in to_delete:

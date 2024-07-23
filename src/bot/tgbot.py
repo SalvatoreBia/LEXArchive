@@ -108,7 +108,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         'Right here you can easily navigate the NASA\'s \'Planetary Systems\' public database, and I am here '
         'to provide you easy access to it with my functionalities. You can consult the /cmds output for all the '
         'available functionalities.\n\n'
-        'If you\'re new and you wish to know more about what the database fields mean, you can make inline queries '
+        'You can use /help to look at the available commands. If you\'re new and you wish to know more about what the database fields mean, you can make inline queries '
         'that will help you clear your mind.'
     )
     await send(update, context, msg, True)
@@ -134,8 +134,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/random - Test your luck\n"
         "/near - Get the nearest planets to earth\n"
         "/far - Get the farthest planets to earth\n"
+        "/hab <planet_name> <option> - Get an habitability index of a specific planet. Use the option -m to calculate it on multiple records.\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
+        "/report <message> - Use this whenever you experience problem(s) with LEXArchive.\n"
     )
     await send(update, context, msg, False)
 
@@ -500,7 +502,7 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         temp.from_iterable(pl)
         planets.append(temp)
 
-    img3d.generate_bpy_script(host, planets)
+    # img3d.generate_bpy_script(host, planets)
 
 
 async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

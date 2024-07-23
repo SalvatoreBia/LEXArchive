@@ -1,45 +1,37 @@
-import math
+import subprocess
+import os
 
 
-FILE = 'resources/temp/blender_script.txt'
-AU_TO_KM = 149597870.7
-SOLAR_RADIUS_AU = 695700 / AU_TO_KM
-EARTH_RADIUS_AU = 6371 / AU_TO_KM
+FILE = 'resources/temp/star_script.txt'
+WORKING_DIRECTORY = '/home/salvatore/Scrivania/lexarchive/src/utils'
+spec_types = {
+    "O": "0.0 0.0 1.0 1.0",
+    "B": "0.0 0.0 1.0 1.0",
+    "A": "1.0 1.0 1.0 1.0",
+    "F": "1.0 1.0 0.88 1.0",
+    "G": "1.0 1.0 0.0 1.0",
+    "K": "1.0 0.65 0.0 1.0",
+    "M": "1.0 0.0 0.0 1.0",
+    "L": "0.55 0.0 0.0 1.0",
+    "T": "0.55 0.0 0.0 1.0",
+    "Y": "0.5 0.0 0.5 1.0"
+}
 
 
-def get_orbit_semi_minor_axis(semi_major_axis, eccentricity):
-    return semi_major_axis * math.sqrt(1 - eccentricity ** 2)
+def get_star_color_rgba(string):
+    for key in spec_types:
+        if key in string:
+            return spec_types[key]
+
+    return spec_types['G']
 
 
-def generate_bpy_script(host, planets: list):
-    script = (
-        'import bpy\n\n'
-        'bpy.ops.object.select_all(action=\'SELECT\')\n'
-        'bpy.ops.object.delete(use_global=False)\n'
-        'bpy.ops.outliner.orphans_purge()\n\n'
-        f'bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius={host.radius * SOLAR_RADIUS_AU })\n'
-        'bpy.ops.object.shade_smooth()\n'
-        'host = bpy.context.object\n\n'
-    )
+def run_blender_script(spec_type):
+    color = get_star_color_rgba(spec_type)
+    command = f'/opt/blender/blender -P {FILE} -- {color}'
+    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    shell.communicate(input=b'python\njava\nc++\npython\n')
 
-    for p in planets:
-        radius = p.radius * EARTH_RADIUS_AU
-        semi_major_axis = p.semi_major_axis
-        semi_minor_axis = get_orbit_semi_minor_axis(semi_major_axis, p.eccentricity)
-        script += (
-            f'bpy.ops.mesh.primitive_circle_add(location=(0,0,0), radius=1)\n'
-            'orbit = bpy.context.object\n'
-            f'orbit.scale = ({semi_major_axis}, {semi_minor_axis}, 1)\n'
-            'bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)\n'
-            f'bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), scale=(1,1,1), radius={radius})\n'
-            'bpy.ops.object.shade_smooth()\n'
-            'planet = bpy.context.object\n'
-            'planet.parent = orbit\n'
-            'orbit_rad = orbit.data.vertices[0].co.length\n'
-            f'planet.location = ({semi_major_axis}, 0, 0)\n\n'
-        )
 
-    script += 'bpy.context.view_layer.update()'
-
-    with open(FILE, 'w') as file:
-        file.write(script)
+if __name__ == '__main__':
+    run_blender_script('sTe4')

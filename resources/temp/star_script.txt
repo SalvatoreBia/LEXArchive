@@ -1,0 +1,44 @@
+import bpy
+import sys
+
+argv = sys.argv
+assert '--' in argv, 'errore'
+
+argv = argv[argv.index('--') + 1:]
+
+SURFACE_COLOR = [float(val) for val in argv]
+print(SURFACE_COLOR)
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+bpy.ops.outliner.orphans_purge()
+
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0,0,0), radius=3)
+bpy.ops.object.shade_smooth()
+host = bpy.context.object
+sub = host.modifiers.new('Subdivision', 'SUBSURF')
+sub.levels = 2
+
+
+mat = bpy.data.materials.new('sborra')
+host.data.materials.append(mat)
+
+mat.use_nodes = True
+nodes = mat.node_tree.nodes
+links = mat.node_tree.links
+
+noise = nodes.new(type='ShaderNodeTexNoise')
+color_ramp = nodes.new(type='ShaderNodeValToRGB')
+bsdf = nodes.get('Principled BSDF')
+
+links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
+links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+
+# adjusting values for starspots
+bsdf.inputs['IOR'].default_value = 1
+bsdf.inputs['Roughness'].default_value = 1
+bsdf.inputs['Metallic'].default_value = 0.5
+color_ramp.color_ramp.elements[0].position = 0.15
+color_ramp.color_ramp.elements[1].color = SURFACE_COLOR
+pin1 = color_ramp.color_ramp.elements.new(position=0.6)
+pin2 = color_ramp.color_ramp.elements.new(position=0.4)

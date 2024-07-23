@@ -1,3 +1,7 @@
+import threading
+from collections import deque
+
+
 class BaseType:
 
     def __init__(self):
@@ -40,3 +44,35 @@ class Planet(BaseType):
             self.name, self.radius, self.semi_major_axis, self.eccentricity = iterable
         except ValueError:
             raise ValueError("Iterable must have exactly 4 elements: name, radius, semi_major_axis, eccentricity")
+
+
+class BlockingQueue:
+
+    def __init__(self, size):
+        self.size = size
+        self.q = deque()
+        self.lock = threading.RLock()
+        self.get_cond = threading.Condition(self.lock)
+        self.put_cond = threading.Condition(self.lock)
+
+    def put(self, val):
+        with self.lock:
+            while len(self.q) == self.size:
+                self.put_cond.wait()
+
+            self.q.append(val)
+
+            if len(self.q) == self.size:
+                self.get_cond.notify_all()
+
+    def get(self):
+        with self.lock:
+            while len(self.q) == 0:
+                self.get_cond.wait()
+
+            val = self.q.popleft()
+
+            if len(self.q) == self.size - 1:
+                self.put_cond.notify_all()
+
+            return val
