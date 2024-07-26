@@ -13,4 +13,6 @@ __pycache__/
 .DS_Store
 .idea/
 
+logs/
+
 resources/config/token.txt

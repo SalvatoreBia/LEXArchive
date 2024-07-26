@@ -5,6 +5,7 @@ import threading
 import uuid
 import re
 import matplotlib.pyplot as plt
+from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -17,10 +18,21 @@ from telegram.ext import (
 from src.datamanagement.database import DbManager as db
 from src.utils import text, mythreads, research, img3d
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+# _____________________________LOGGING________________________________________
+
+report_logger = logging.getLogger('report_logger')
+report_logger.setLevel(logging.INFO)
+
+log_handler = RotatingFileHandler(
+    'logs/bot.log',
+    maxBytes=5*1024*1024,
+    backupCount=3
 )
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log_handler.setFormatter(formatter)
+report_logger.addHandler(log_handler)
+logging.basicConfig(level=logging.INFO)
 
 # _____________________________VARIABLES______________________________________
 
@@ -530,6 +542,20 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, chunk, True)
 
 
+async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    if len(context.args) == 0:
+        return
+
+    report_text = ' '.join(context.args)
+    report_logger.info(f"Report received from {update.message.from_user.id}: {report_text}")
+    msg = 'Thanks for the report, it will help us fix the bot and provide a better experience to all users.'
+    await send(update, context, msg, False)
+
+
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
@@ -673,9 +699,9 @@ def run() -> None:
     application.add_handler(CommandHandler('near', distance_endpoint))
     application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('show', show))
-    application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('hab', hab))
-
+    application.add_handler(CommandHandler('report', report))
+    application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_cmd))
     application.add_handler(CallbackQueryHandler(button_listener))
