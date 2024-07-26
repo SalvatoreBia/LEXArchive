@@ -150,7 +150,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/hab <planet_name> <option> - Get an habitability index of a specific planet. Use the option -m to calculate it on multiple records.\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
-        "/report <message> - Use this whenever you experience problem(s) with LEXArchive.\n"
+        "/report <message> - Submit a message to report any problem using the bot.\n"
     )
     await send(update, context, msg, False)
 

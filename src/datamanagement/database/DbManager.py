@@ -206,7 +206,7 @@ def count_rows_per_pl(keyword: str):
 
 def get_pl_by_name(keyword: str):
     try:
-        query = f'SELECT * FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ? LIMIT {Database.limit()}'
+        query = f'SELECT * FROM ps WHERE LOWER(REPLACE(pl_name, " ", "")) LIKE ? LIMIT {Database.limit()}'
         cres = True if count_rows_per_pl(keyword) >= Database.limit() else False
         res = db.execute_query(query, [f'%{keyword}%'])
         rows = [row for row in res.fetchall()] if res else []
