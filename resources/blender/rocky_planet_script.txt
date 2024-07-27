@@ -1,0 +1,66 @@
+import bpy
+import sys
+import random
+
+argv = sys.argv
+
+if '--' not in argv:
+    raise ValueError('Error: invalid syntax.')
+
+split_index = argv.index('--')
+file_id = argv[split_index + 1]
+
+# Clear existing objects
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+bpy.ops.outliner.orphans_purge()
+
+# Create a UV sphere
+bpy.ops.mesh.primitive_uv_sphere_add(location=(0, 0, 0), radius=3)
+bpy.ops.object.shade_smooth()
+planet = bpy.context.object
+sub = planet.modifiers.new('Subdivision', 'SUBSURF')
+sub.levels = 2
+
+# Create a new material
+mat = bpy.data.materials.new('RockyMaterial')
+planet.data.materials.append(mat)
+
+mat.use_nodes = True
+nodes = mat.node_tree.nodes
+links = mat.node_tree.links
+
+noise = nodes.new(type='ShaderNodeTexNoise')
+color_ramp = nodes.new(type='ShaderNodeValToRGB')
+bsdf = nodes.get('Principled BSDF')
+bump = nodes.new(type='ShaderNodeBump')
+
+links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
+links.new(noise.outputs['Fac'], bump.inputs['Height'])
+links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+links.new(bump.outputs['Normal'], bsdf.inputs['Normal'])
+
+noise.inputs['Scale'].default_value = random.randint(300, 1200) / 100
+noise.inputs['Detail'].default_value = 5
+noise.inputs['Roughness'].default_value = 0.6
+
+# Add a camera
+bpy.ops.object.camera_add(location=(0, -20, 0))
+camera = bpy.context.object
+camera.rotation_euler = (1.5708, 0, 0)  # Rotate 90 degrees to face the object
+bpy.context.scene.camera = camera
+
+# Add a light source
+bpy.ops.object.light_add(type='POINT', location=(0, -13, 0))
+light = bpy.context.object
+light.data.energy = 12000
+
+# Set the render settings
+output_path = f"/home/salvatore/Scrivania/lexarchive/resources/img/{file_id}.png"
+bpy.context.scene.render.filepath = output_path
+bpy.context.scene.render.image_settings.file_format = 'PNG'
+bpy.context.scene.render.resolution_x = 1920  # Set the resolution you need
+bpy.context.scene.render.resolution_y = 1080
+
+# Render the image
+bpy.ops.render.render(write_still=True)

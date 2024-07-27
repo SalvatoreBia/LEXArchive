@@ -510,13 +510,14 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         args = context.args
     name = ''.join(args).lower()
-    print(name)
 
     celestial_body = db.get_celestial_body_info(name) if is_planet else db.get_celestial_body_info(name, is_planet=False)
-    if is_planet:
-        pass
+    if celestial_body is not None and is_planet:
+        img3d.run_blender_planet_script(update.effective_chat.id, celestial_body)
+    elif celestial_body is not None and not is_planet:
+        img3d.run_blender_star_script(update.effective_chat.id, celestial_body)
     else:
-        img3d.run_blender_star_script(update.effective_chat.id, celestial_body[0], celestial_body[1])
+        return
 
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,

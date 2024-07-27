@@ -295,12 +295,29 @@ def get_names_set():
 
 def get_celestial_body_info(name: str, is_planet=True):
     try:
-        query = 'SELECT pl_name FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
+        fields = [
+            'pl_name',
+            'pl_eqt',
+            'pl_bmasse',
+            'pl_rade',
+            'pl_orbsmax',
+            'st_teff',
+            'st_rad'
+        ]
+        query = (
+            f'SELECT {','.join(fields)} '
+            'FROM pscomppars '
+            'WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
+        )
         if not is_planet:
-            query = 'SELECT hostname, st_spectype FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
+            fields = [
+                'hostname',
+                'st_spectype'
+            ]
+            query = f'SELECT {','.join(fields)} FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
 
         res = db.execute_query(query, [name])
-        return res.fetchone() if res else None
+        return {key: val for key, val in zip(fields, res.fetchone())} if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
