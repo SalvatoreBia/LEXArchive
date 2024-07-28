@@ -10,17 +10,7 @@ if '--' not in argv:
     raise ValueError('Error: invalid syntax.')
 
 split_index = argv.index('--')
-argv = argv[split_index + 1:]
-
-if '--' not in argv:
-    raise ValueError('Error: missing file id.')
-
-split_index = argv.index('--')
-color_arg = argv[:split_index]
 file_id = argv[split_index + 1]
-
-SURFACE_COLOR = [float(val) for val in color_arg]
-print(SURFACE_COLOR)
 
 # Clear existing objects
 bpy.ops.object.select_all(action='SELECT')
@@ -30,37 +20,39 @@ bpy.ops.outliner.orphans_purge()
 # Create a UV sphere
 bpy.ops.mesh.primitive_uv_sphere_add(location=(0, 0, 0), radius=3)
 bpy.ops.object.shade_smooth()
-host = bpy.context.object
-sub = host.modifiers.new('Subdivision', 'SUBSURF')
+planet = bpy.context.object
+sub = planet.modifiers.new('Subdivision', 'SUBSURF')
 sub.levels = 2
 
 # Create a new material
-mat = bpy.data.materials.new('StarMaterial')
-host.data.materials.append(mat)
+mat = bpy.data.materials.new('RockyMaterial')
+planet.data.materials.append(mat)
 
 mat.use_nodes = True
 nodes = mat.node_tree.nodes
 links = mat.node_tree.links
 
-# Add nodes
-noise = nodes.new(type='ShaderNodeTexNoise')
-color_ramp = nodes.new(type='ShaderNodeValToRGB')
-bsdf = nodes.get('Principled BSDF')
+nodes.remove(nodes.get('Principled BSDF'))
 
-# Link nodes
-links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
-links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+wave = nodes.new(type='ShaderNodeTexWave')
+voronoi = nodes.new(type='ShaderNodeTexVoronoi')
+coord = nodes.new(type='ShaderNodeTexCoord')
+mapping = nodes.new(type='ShaderNodeMapping')
+mat_output = nodes.get('Material Output')
 
-# Adjusting values for starspots
-noise.inputs['Scale'].default_value = 25
-noise.inputs['Distortion'].default_value = random.randint(900, 1200) / 100
-bsdf.inputs['IOR'].default_value = 1
-bsdf.inputs['Roughness'].default_value = 1
-bsdf.inputs['Metallic'].default_value = 0.5
-color_ramp.color_ramp.elements[0].position = 0.15
-color_ramp.color_ramp.elements[1].color = SURFACE_COLOR
-pin1 = color_ramp.color_ramp.elements.new(position=0.6)
-pin2 = color_ramp.color_ramp.elements.new(position=0.4)
+wave.bands_direction = 'Z'
+wave.inputs['Scale'].default_value = 0.12
+
+voronoi.feature = 'SMOOTH_F1'
+voronoi.inputs['Scale'].default_value = random.randint(50, 200) / 100
+voronoi.inputs['Randomness'].default_value = 0.45
+
+mapping.inputs[3].default_value[2] = random.randint(100, 250) / 100
+
+links.new(coord.outputs['Object'], mapping.inputs['Vector'])
+links.new(mapping.outputs['Vector'], wave.inputs['Vector'])
+links.new(wave.outputs['Color'], voronoi.inputs['Vector'])
+links.new(voronoi.outputs['Distance'], mat_output.inputs['Surface'])
 
 # Add a camera and place it in a random point of its orbit around the star
 bpy.ops.object.camera_add()

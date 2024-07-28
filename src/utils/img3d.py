@@ -5,6 +5,7 @@ import math
 
 STAR_FILE = 'resources/blender/star_script.txt'
 ROCKY_FILE = 'resources/blender/rocky_planet_script.txt'
+GASSY_FILE = 'resources/blender/gassy_planet_script.txt'
 IMG_DIR = 'resources/img/'
 WORKING_DIRECTORY = '/home/salvatore/Scrivania/lexarchive'
 spec_types = {
@@ -31,6 +32,10 @@ def get_star_color_rgba(string):
     return spec_types['G']
 
 
+def albedo(eqt, teff, srad, smax):
+    return 1 - (eqt / (teff * math.sqrt((srad * SOLAR_RAD) / (2 * (smax * AU_TO_KM))))) ** 0.25
+
+
 def run_blender_star_script(chat, data):
     color = get_star_color_rgba(data['st_spectype'])
     command = f'/opt/blender/blender -b -P {STAR_FILE} -- {color} -- {chat}'
@@ -47,7 +52,6 @@ def run_blender_planet_script(chat, data):
 
 
 def run_rocky_planet_script(chat, data):
-    albedo = lambda eqt, teff, srad, smax: 1 - (eqt / (teff * math.sqrt((srad * SOLAR_RAD) / (2 * (smax * AU_TO_KM))))) ** 0.25
     command = f'/opt/blender/blender -b -P {ROCKY_FILE} -- {chat}'
     shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
@@ -55,7 +59,11 @@ def run_rocky_planet_script(chat, data):
 
 
 def run_gassy_planet_script(chat, data):
-    pass
+    command = f'/opt/blender/blender -b -P {GASSY_FILE} -- {chat}'
+    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
+    print(stderr)
 
 
 def delete_render_png(file_id):

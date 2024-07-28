@@ -1,5 +1,7 @@
 import bpy
 import sys
+import math
+import mathutils
 import random
 
 argv = sys.argv
@@ -44,16 +46,50 @@ noise.inputs['Scale'].default_value = random.randint(300, 1200) / 100
 noise.inputs['Detail'].default_value = 5
 noise.inputs['Roughness'].default_value = 0.6
 
-# Add a camera
-bpy.ops.object.camera_add(location=(0, -20, 0))
+# Add a camera and place it in a random point of its orbit around the star
+bpy.ops.object.camera_add()
 camera = bpy.context.object
-camera.rotation_euler = (1.5708, 0, 0)  # Rotate 90 degrees to face the object
+camera_orbit = 20
+
+angle = random.uniform(0, 2 * math.pi)
+x = camera_orbit * math.cos(angle)
+y = camera_orbit * math.sin(angle)
+z = 0
+camera.location = (x, y, z)
+
+direction = mathutils.Vector((0, 0, 0,)) - camera.location
+rot_quat = direction.to_track_quat('-Z', 'Y')
+camera.rotation_euler = rot_quat.to_euler()
+
 bpy.context.scene.camera = camera
 
 # Add a light source
-bpy.ops.object.light_add(type='POINT', location=(0, -13, 0))
+bpy.ops.object.light_add(type='POINT')
 light = bpy.context.object
 light.data.energy = 12000
+light.parent = camera
+
+# Setting the outer space background
+world = bpy.context.scene.world
+world.use_nodes = True
+
+wnodes = world.node_tree.nodes
+wlinks = world.node_tree.links
+wnodes.clear()
+
+voronoi = wnodes.new(type='ShaderNodeTexVoronoi')
+ramp = wnodes.new(type='ShaderNodeValToRGB')
+background = wnodes.new(type='ShaderNodeBackground')
+output = wnodes.new(type='ShaderNodeOutputWorld')
+ramp.color_ramp.elements[0].position = 0.15
+ramp.color_ramp.elements[1].position = 0
+
+background.inputs['Strength'].default_value = 5
+voronoi.inputs['Scale'].default_value = 200
+
+wlinks.new(voronoi.outputs['Distance'], ramp.inputs['Fac'])
+wlinks.new(ramp.outputs['Color'], background.inputs['Color'])
+wlinks.new(background.outputs['Background'], output.inputs['Surface'])
 
 # Set the render settings
 output_path = f"/home/salvatore/Scrivania/lexarchive/resources/img/{file_id}.png"
