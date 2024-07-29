@@ -40,11 +40,13 @@ TOKEN_PATH = 'resources/config/token.txt'
 FIELDS_PATH = 'resources/config/fields.txt'
 SUB_PATH = 'resources/data/subscribers.txt'
 DEF_PATH = 'resources/config/definitions.txt'
+INFO_PATH = 'resources/config/commands_info.txt'
 IMG_DIR = 'resources/img/'
 search_data = {}
 SEARCH_LIMIT = 25
 fields_ = {}
 definitions = {}
+comm_infos = {}
 plot_supported = {
     'emass': 'pl_bmasse',
     'jmass': 'pl_bmassj',
@@ -135,6 +137,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = (
         "Here are the available commands:\n\n"
         "/start - Welcome message\n"
+        "/info <command_name> - Get details about one or more commands and how to use them\n"
         "/count - Count total records in the database\n"
         "/pcount - Count total discovered exoplanets\n"
         "/discin <year> - Count exoplanets discovered in a specific year\n"
@@ -143,16 +146,32 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/plot <field> - Plot distribution of a specific field\n"
         "/fields - List all available fields\n"
         "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
-        "/show <name> <option> - Get 3D image representing a celestial body. Use the option -s if it is a star.\n"
+        "/show <name> <option> - Get 3D image representing a celestial body.\n"
         "/random - Test your luck\n"
         "/near - Get the nearest planets to earth\n"
         "/far - Get the farthest planets to earth\n"
-        "/hab <planet_name> <option> - Get an habitability index of a specific planet. Use the option -m to calculate it on multiple records.\n"
+        "/hab <planet_name> <option> - Get an habitability index of a specific planet.\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
         "/report <message> - Submit a message to report any problem using the bot.\n"
     )
     await send(update, context, msg, False)
+
+
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat = update.effective_chat.id
+    if chat not in search_data:
+        reset_search(chat)
+        updater.add_id(chat)
+
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax*: You need to search for one or more commands.', True)
+
+    for comm in context.args:
+        if comm in comm_infos:
+            await send(update, context, f'*{comm}*' + '\n\n' + comm_infos[comm], True)
+        else:
+            await send(update, context, f'*Error*: Command \'{comm}\' not found. Check if the name is correct, if so, it means that there are no more infos about it.', True)
 
 
 # count how many rows are in the database
@@ -680,14 +699,25 @@ def _load_definitions():
             definitions[pair[0]] = pair[1]
 
 
+def _load_infos():
+    with open(INFO_PATH, 'r') as file:
+        for line in file:
+            pair = line.strip().split(':', maxsplit=1)
+            comm_infos[pair[0]] = pair[1]
+
+
 def run() -> None:
     global updater
-    token = _read_token()
+
     _load_fields()
     _load_definitions()
+    _load_infos()
+
+    token = _read_token()
     application = ApplicationBuilder().token(token).build()
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help))
+    application.add_handler(CommandHandler('info', info))
     application.add_handler(CommandHandler('count', count))
     application.add_handler(CommandHandler('pcount', count_pl))
     application.add_handler(CommandHandler('discin', disc_in))

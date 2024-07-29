@@ -1,0 +1,17 @@
+info:This helps you understand how to use the bot's commands if you're using it for the first time. You can input one or more commands separated by whitespaces. Example: /info count show
+count:Count how many rows there are in the 'Planetary Systems' table, where for each planet can be multiple records since more than one research group can provide the data observed.
+pcount:Count how many rows there are in the 'Planetary Systems Composite Data' table, where each row represent a unique planet.
+discin:Count how many rows there are in 'Planetary Systems Composite Data' where the 'Discovery Year' matches your input.
+search:Displays a list of planet in the database. You can filter the search by providing an input such as a letter or the entire planet name. If an empty string is provided, the command will display the planets in alphabetical order.
+table:Returns an HTML file displaying all records retrieved in 'Planetary Systems' table by providing an input such as a letter or the entire planet name. By default the commands return 20 rows at most, since the file would take more time to be processed.
+plot:Returns a photo plotting a certain planet parameter. The currently field supported by the command are *emass*(mass measured in earth masses), *jmass*(mass measured in jupiter masses), *erad*(radius measured in earth radius), *jrad*(radius measured in jupiter radius), *sgrav*(stellar surface gravity), *srad*(stellar radius measured in solar radius), *smass*(stellar mass measured in solar masses)
+fields:Displays all the fields used in the database. It's useful when you want to know how the data is structured. You can make inline queries searching for a specific fields in case you need to know what a field actually means.
+locate:Returns a photo of a piece of sky based on the coordinates of the planet you searched, pointing at the direction where it's located. *NOTE*: to use this command properly, you need to enter the entire planet name, whitespaces and lowercase allowed.
+show:Returns a 3D image of the celestial body you searched. If you're looking for a star, use the option *-s*. *NOTE*: to use this command properly, you need to enter the entire planet name, whitespaces and lowercase allowed.
+random:??????
+near:Returns the 3 (if available) nearest planets to the earth, measuring the distance in parsecs. *NOTE*: 1 parsec is 3,086*10^16 meters.
+far:Returns the 3 (if available) farthest planets to the earth, measuring the distance in parsecs. *NOTE*: 1 parsec is 3,086*10^16 meters.
+hab:Returns an habitability index estimated calculating common factors like habitable zone, gravity, and so on. You can use the option *-m* if you want to calculate on multiple records (for each research group). *NOTE*: to use this command properly, you need to enter the entire planet name, whitespaces and lowercase allowed.
+sub: Subscribe for daily updates at a specific time. If you're subscribed and you want to change the time, just run the command again with the new one. Example: /sub 08:30 to receive updates every day at 8:30 AM.
+unsub: Unsubscribe from daily updates.
+report: Submit a message to report any problems using the bot. Example: /report The command /count is not working properly.
