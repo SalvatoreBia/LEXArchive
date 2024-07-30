@@ -79,6 +79,16 @@ def fetch_sky_image(pair):
     return buffer
 
 
+def calculate_luminosity(st_rad, st_teff):
+    return (st_rad ** 2) * ((st_teff / SOLAR_TEFF) ** 4)
+
+
+def calculate_habitable_zone_edges(luminosity):
+    hab_zone_inner = round(math.sqrt(luminosity / 1.1), 2)
+    hab_zone_outer = round(math.sqrt(luminosity / 0.53), 2)
+    return hab_zone_inner, hab_zone_outer
+
+
 def calculate_habitability_index(data, threshold=0.5):
     def pl_gravity(mass, rad):
         return UG_CONST * (mass / rad ** 2)
@@ -93,19 +103,16 @@ def calculate_habitability_index(data, threshold=0.5):
         'spectral_type_condition': False
     }
 
+    luminosity = None
     if data['st_rad'] is not None and data['st_teff'] is not None:
-        luminosity = (data['st_rad'] ** 2) * ((data['st_teff'] / SOLAR_TEFF) ** 4)
-    else:
-        luminosity = None
+        luminosity = calculate_luminosity(data['st_rad'], data['st_teff'])
 
     equilibrium_temperature = data['pl_eqt']
     if equilibrium_temperature is None and luminosity is not None and data['pl_orbsmax'] is not None:
-        equilibrium_temperature = ((luminosity * (1 - ALBEDO)) / (
-                16 * math.pi * (data['pl_orbsmax'] ** 2) * 5.670374419e-8)) ** 0.25
+        equilibrium_temperature = ((luminosity * (1 - ALBEDO)) / (16 * math.pi * (data['pl_orbsmax'] ** 2) * 5.670374419e-8)) ** 0.25
 
     if luminosity is not None:
-        hab_zone_inner = round(math.sqrt(luminosity / 1.1), 2)
-        hab_zone_outer = round(math.sqrt(luminosity / 0.53), 2)
+        hab_zone_inner, hab_zone_outer = calculate_habitable_zone_edges(luminosity)
         if data['pl_orbsmax'] is not None and data['pl_orbeccen'] is not None:
             peri = data['pl_orbsmax'] * (1 - data['pl_orbeccen'])
             apo = data['pl_orbsmax'] * (1 + data['pl_orbeccen'])

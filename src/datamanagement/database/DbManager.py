@@ -370,3 +370,16 @@ def mass(name: str):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None, None
+
+
+def get_habitable_zone_data(name: str):
+    try:
+        query = 'SELECT st_rad, st_teff FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
+        res = db.execute_query(query, [name])
+        if res:
+            return res.fetchone()
+
+        return None, None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None, None

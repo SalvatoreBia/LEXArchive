@@ -547,6 +547,16 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
     if len(context.args) == 0:
         return
 
@@ -561,6 +571,33 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, chunk, True)
 
 
+async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax*: You need to search for a star name.', True)
+        return
+
+    name = ' '.join(context.args).lower()
+    data = db.get_habitable_zone_data(''.join(context.args).lower())
+    if data is None:
+        await send(update, context, f'Star \'*{name}*\' not found or data needed to conduct the calculations currently unavailable.', True)
+        return
+
+    rad, teff = data
+    luminosity = research.calculate_luminosity(rad, teff)
+    inner, outer = research.calculate_habitable_zone_edges(luminosity)
+    await send(update, context, f'The habitable zone for the star \'*{name}*\' falls approximately between {inner} and {outer}, measured in Astronomical Units.', True)
+
+
 async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_chat.id not in search_data:
         reset_search(update.effective_chat.id)
@@ -573,7 +610,7 @@ async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     if len(context.args) == 0:
-        await send(update, context, '*Invalid Syntax*: You need to search for one planet or star name.', True)
+        await send(update, context, '*Invalid Syntax*: You need to search for a planet or star name.', True)
         return
 
     name = ' '.join(context.args)
@@ -581,7 +618,6 @@ async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if mass is None:
         if is_planet is None:
             await send(update, context, f'There\'s no planet or star named \'*{name}*\' here.', True)
-            return
         else:
             await send(update, context, f'The {'planet' if is_planet else 'star'} \'*{name}*\' was found, but its mass is not available.', True)
         return
@@ -759,6 +795,7 @@ def run() -> None:
     application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('hab', hab))
+    application.add_handler(CommandHandler('habzone', hab_zone))
     application.add_handler(CommandHandler('shwz', schwarzschild))
     application.add_handler(CommandHandler('report', report))
     application.add_handler(CommandHandler('sub', subscribe))
