@@ -11,6 +11,8 @@ from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
 import math
+from src.utils import text
+
 
 FILE = 'resources/data/news.txt'
 SOLAR_TEFF = 5778
@@ -89,7 +91,19 @@ def calculate_habitable_zone_edges(luminosity):
     return hab_zone_inner, hab_zone_outer
 
 
-def calculate_habitability_index(data, threshold=0.5):
+def calculate_habitability(data, multiple):
+    if not multiple:
+        return _calculate_habitability_index(data, multiple)
+
+    summaries = []
+    for planet in data:
+        summary = _calculate_habitability_index(planet, multiple)
+        summaries.append(summary)
+
+    return summaries
+
+
+def _calculate_habitability_index(data, multiple, threshold=0.5):
     def pl_gravity(mass, rad):
         return UG_CONST * (mass / rad ** 2)
 
@@ -140,7 +154,16 @@ def calculate_habitability_index(data, threshold=0.5):
 
     is_habitable = habitability_index >= threshold
 
+    research_group = ''
+    if multiple:
+        match = text.get_href_match(data['pl_refname'])
+        if match:
+            research_group = f"The following summary is based on the data observed by [{match.group(2)}]({match.group(1)})\n\n"
+        else:
+            research_group = "Could not retrieve the research group.\n\n"
+
     summary = (
+        research_group +
         f"The planet has a habitability index of *{habitability_index:.2f}*. "
         f"It {'meets' if is_habitable else 'does not meet'} the minimum habitability threshold of {threshold:.2f}. "
         f"The conditions evaluated include: \n"

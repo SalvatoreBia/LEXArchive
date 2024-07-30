@@ -66,12 +66,17 @@ def htable_format(headers: list, rows: list, exceeds: bool) -> str:
     return head + table
 
 
+def get_href_match(string: str):
+    regex = r'^<a.*href=([a-zA-Z-0-9\/:\._]+).*>(.*)<\/a>$'
+    match = re.match(regex, string)
+    return match
+
+
 def planet_spec_format(planet: dict) -> str:
     string = ''
-    regex = r'^<a.*href=([a-zA-Z-0-9\/:\._]+).*>(.*)<\/a>$'
     for key, value in planet.items():
         if key == 'Planetary Parameter Reference~':
-            match = re.match(regex, value)
+            match = get_href_match(value)
             if match:
                 string += f'*{key}* → [{match.group(2)}]({match.group(1)})\n'
         else:

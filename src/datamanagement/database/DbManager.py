@@ -323,7 +323,7 @@ def get_celestial_body_info(name: str, is_planet=True):
         return None
 
 
-def get_habitability_info(planet: str):
+def get_habitability_info(planet: str, multiple: bool):
     try:
         check_exist = exists(planet)
         if not check_exist or check_exist is None:
@@ -341,13 +341,27 @@ def get_habitability_info(planet: str):
             'pl_insol'
         ]
 
+        if multiple:
+            hab_info.append('pl_refname')
+
+        table_name = 'pscomppars' if not multiple else 'ps'
         query = (
-            f'SELECT {','.join(hab_info)} '
-            'FROM pscomppars '
+            f'SELECT {",".join(hab_info)} '
+            f'FROM {table_name} '
             'WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
         )
+
         res = db.execute_query(query, [planet])
-        return {key: val for key, val in zip(hab_info, res.fetchone())} if res else None
+        rows = res.fetchall()
+
+        if not rows:
+            return None
+
+        if multiple:
+            return [{key: val for key, val in zip(hab_info, row)} for row in rows]
+        else:
+            return {key: val for key, val in zip(hab_info, rows[0])}
+
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None

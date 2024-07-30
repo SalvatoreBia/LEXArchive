@@ -146,14 +146,16 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/plot <field> - Plot distribution of a specific field\n"
         "/fields - List all available fields\n"
         "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
-        "/show <name> <option> - Get 3D image representing a celestial body.\n"
+        "/show <name> <option> - Get 3D image representing a celestial body\n"
         "/random - Test your luck\n"
         "/near - Get the nearest planets to earth\n"
         "/far - Get the farthest planets to earth\n"
         "/hab <planet_name> <option> - Get an habitability index of a specific planet.\n"
+        "/habzone <star_name> - Get infos about a star\'s habitable zone\n"
+        "/shwz <name> - Get the schwarzschild radius for a given star or planet\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
         "/unsub - Unsubscribe from daily updates\n"
-        "/report <message> - Submit a message to report any problem using the bot.\n"
+        "/report <message> - Submit a message to report any problem using the bot\n"
     )
     await send(update, context, msg, False)
 
@@ -506,7 +508,6 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 # function that returns an image representing the planetary system
-# TODO DA FINIRE
 async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_chat.id not in search_data:
         reset_search(update.effective_chat.id)
@@ -557,18 +558,30 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, msg, False)
         return
 
-    if len(context.args) == 0:
+    if len(context.args) == 0 or ('-m' in context.args and (context.args.index('-m') != len(context.args) - 1 or context.args.count('-m') > 1)):
         return
 
-    planet = ''.join(context.args).lower()
-    h_info = db.get_habitability_info(planet)
+    multiple = True if context.args[-1] == '-m' else False
+    if multiple:
+        args = context.args[:-1]
+    else:
+        args = context.args
+
+    planet = ''.join(args).lower()
+    h_info = db.get_habitability_info(planet, multiple)
     if h_info is None:
         await send(update, context, 'Ops... Nothing found.', False)
+        return
 
-    msg = research.calculate_habitability_index(h_info)
-    msg_chunks = [msg[i:i+4096] for i in range(0, len(msg), 4096)]
-    for chunk in msg_chunks:
-        await send(update, context, chunk, True)
+    msg = research.calculate_habitability(h_info, multiple)
+    if not multiple:
+        msg_chunks = [msg[i:i+4096] for i in range(0, len(msg), 4096)]
+        for chunk in msg_chunks:
+            await send(update, context, chunk, True)
+        return
+
+    for m in msg:
+        await send(update, context, m, True)
 
 
 async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -642,11 +655,9 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
-        return
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
 
     query = update.inline_query.query
     if not query:
