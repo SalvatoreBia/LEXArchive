@@ -16,8 +16,10 @@ FILE = 'resources/data/news.txt'
 SOLAR_TEFF = 5778
 UG_CONST = 6.67e-11
 EARTH_MASS = 5.9722e24
+SOLAR_MASS = 1.989e30
 EARTH_RAD = 6371e3
 ALBEDO = 0.3
+C = 3e8
 
 
 def fetch_news(keyword='exoplanets news'):
@@ -153,3 +155,8 @@ def calculate_habitability_index(data, threshold=0.5):
     )
 
     return summary
+
+
+def calculate_schwarzschild_radius(mass, is_planet):
+    radius = (2 * UG_CONST / C ** 2) * (mass * EARTH_MASS if is_planet else mass * SOLAR_MASS)
+    return round(radius, 3)

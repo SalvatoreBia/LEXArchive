@@ -518,7 +518,6 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send(update, context, msg, False)
         return
 
-
     if len(context.args) == 0 or ('-s' in context.args and (context.args.index('-s') != len(context.args) - 1 or context.args.count('-s') > 1)):
         return
 
@@ -552,14 +551,43 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     planet = ''.join(context.args).lower()
-    info = db.get_habitability_info(planet)
-    if info is None:
+    h_info = db.get_habitability_info(planet)
+    if h_info is None:
         await send(update, context, 'Ops... Nothing found.', False)
 
-    msg = research.calculate_habitability_index(info)
+    msg = research.calculate_habitability_index(h_info)
     msg_chunks = [msg[i:i+4096] for i in range(0, len(msg), 4096)]
     for chunk in msg_chunks:
         await send(update, context, chunk, True)
+
+
+async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id not in search_data:
+        reset_search(update.effective_chat.id)
+        updater.add_id(update.effective_chat.id)
+
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return
+
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax*: You need to search for one planet or star name.', True)
+        return
+
+    name = ' '.join(context.args)
+    mass, is_planet = db.mass(''.join(context.args).lower())
+    if mass is None:
+        if is_planet is None:
+            await send(update, context, f'There\'s no planet or star named \'*{name}*\' here.', True)
+            return
+        else:
+            await send(update, context, f'The {'planet' if is_planet else 'star'} \'*{name}*\' was found, but its mass is not available.', True)
+        return
+
+    radius = research.calculate_schwarzschild_radius(mass, is_planet)
+    await send(update, context, f'The schwarzschild radius for the {'planet' if is_planet else 'star'} \'*{name}*\' is *{radius}* meters.', True)
 
 
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -731,6 +759,7 @@ def run() -> None:
     application.add_handler(CommandHandler('far', distance_endpoint))
     application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('hab', hab))
+    application.add_handler(CommandHandler('shwz', schwarzschild))
     application.add_handler(CommandHandler('report', report))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))

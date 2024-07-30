@@ -351,3 +351,22 @@ def get_habitability_info(planet: str):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
+
+
+def mass(name: str):
+    try:
+        query = 'SELECT pl_bmasse FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
+        res = db.execute_query(query, [name])
+        row = res.fetchone()
+        if row:
+            return row[0], True
+
+        query = 'SELECT st_mass FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
+        res = db.execute_query(query, [name])
+        row = res.fetchone()
+        if row:
+            return row[0], False
+        return None, None
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None, None

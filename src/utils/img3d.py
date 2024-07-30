@@ -60,8 +60,7 @@ def run_rocky_planet_script(chat, data):
 
 def run_gassy_planet_script(chat, data):
     command = f'/opt/blender/blender -b -P {GASSY_FILE} -- {chat}'
-    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
     print(stderr)
 
