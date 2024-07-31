@@ -116,16 +116,3 @@ class ArchiveUpdater(threading.Thread):
             self._set_sleeping(True)
             time.sleep(86400)
             self._set_sleeping(False)
-
-
-class Img3dSubprocessExecutor(threading.Thread):
-
-    def __init__(self, limit):
-        super().__init__()
-        self.limit = limit
-        self.queue = lex_dtypes.BlockingQueue(self.limit)
-
-    def run(self):
-        while True:
-            call = self.queue.get()
-            img3d.run_blender_script(call)

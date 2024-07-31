@@ -16,7 +16,7 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text, mythreads, research, img3d
+from src.utils import text, mythreads, research, img3d, lex_dtypes
 
 # _____________________________LOGGING________________________________________
 
@@ -64,6 +64,9 @@ newsLock = threading.RLock()
 state_lock = threading.RLock()
 executor = ThreadPoolExecutor()
 updater = mythreads.ArchiveUpdater()
+
+MAX_SUBPROCESSES = 5
+subprocess_queue = lex_dtypes.BlockingQueue(MAX_SUBPROCESSES)
 
 # _____________________________FUNCTIONS______________________________________
 
@@ -531,12 +534,16 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = ''.join(args).lower()
 
     celestial_body = db.get_celestial_body_info(name) if is_planet else db.get_celestial_body_info(name, is_planet=False)
-    if celestial_body is not None and is_planet:
-        img3d.run_blender_planet_script(update.effective_chat.id, celestial_body)
-    elif celestial_body is not None and not is_planet:
-        img3d.run_blender_star_script(update.effective_chat.id, celestial_body)
+    if celestial_body is not None:
+        await asyncio.get_event_loop().run_in_executor(None, subprocess_queue.put, update.effective_chat.id)
+        if is_planet:
+            img3d.run_blender_planet_script(update.effective_chat.id, celestial_body)
+        else:
+            img3d.run_blender_star_script(update.effective_chat.id, celestial_body)
     else:
         return
+
+    await asyncio.get_event_loop().run_in_executor(None, subprocess_queue.get)
 
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
