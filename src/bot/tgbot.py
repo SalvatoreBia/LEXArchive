@@ -621,7 +621,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     report_text = ' '.join(context.args)
-    report_logger.info(f"Report received from {update.message.from_user.id}: {report_text}")
+    report_logger.info(f"Report received from {update.effective_chat.username} (user_id={update.effective_chat.id}): {report_text}")
     msg = 'Thanks for the report, it will help us fix the bot and provide a better experience to all users.'
     await send(update, context, msg, False)
 
