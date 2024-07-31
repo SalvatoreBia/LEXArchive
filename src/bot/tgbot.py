@@ -62,6 +62,7 @@ pngLock = asyncio.Lock()
 subLock = threading.RLock()
 newsLock = threading.RLock()
 state_lock = threading.RLock()
+updater_ids_lock = threading.RLock()
 executor = ThreadPoolExecutor()
 updater = mythreads.ArchiveUpdater()
 
@@ -106,6 +107,12 @@ def current_state() -> bool:
         return updater.is_sleeping()
 
 
+async def register_user(chat_id):
+    if chat_id not in search_data:
+        reset_search(chat_id)
+        await asyncio.get_event_loop().run_in_executor(executor, updater.add_id, chat_id)
+
+
 async def send(update: Update, context: ContextTypes.DEFAULT_TYPE, msg: str, parsing: bool) -> None:
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -115,10 +122,7 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE, msg: str, par
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat = update.effective_chat.id
-    if chat not in search_data:
-        reset_search(chat)
-        updater.add_id(chat)
+    await register_user(update.effective_chat.id)
 
     msg = (
         '🌌 *Welcome to LEXArchive!* 🚀\n\n'
@@ -132,10 +136,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat = update.effective_chat.id
-    if chat not in search_data:
-        reset_search(chat)
-        updater.add_id(chat)
+    await register_user(update.effective_chat.id)
 
     msg = (
         "Here are the available commands:\n\n"
@@ -164,10 +165,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat = update.effective_chat.id
-    if chat not in search_data:
-        reset_search(chat)
-        updater.add_id(chat)
+    await register_user(update.effective_chat.id)
 
     if len(context.args) == 0:
         await send(update, context, '*Invalid Syntax*: You need to search for one or more commands.', True)
@@ -181,9 +179,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many rows are in the database
 async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -199,9 +195,7 @@ async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many planets were discovered
 async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -217,9 +211,7 @@ async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # count how many planets were discovered in a certain year
 async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -240,9 +232,7 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # returns a list of planet with buttons to iterate it
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -289,9 +279,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # button listener for the search command
 async def button_listener(update: Update, context: CallbackContext) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -335,9 +323,7 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
 
 # returns an html table retrieving some records of a specific planet
 async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -372,9 +358,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # plot how a field is distributed
 async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -407,9 +391,7 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # returns the list of fields
 async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -425,9 +407,7 @@ async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -452,9 +432,7 @@ async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -479,9 +457,7 @@ async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -512,9 +488,7 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # function that returns an image representing the planetary system
 async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -555,9 +529,7 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -592,9 +564,7 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -619,9 +589,7 @@ async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -647,9 +615,7 @@ async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     if len(context.args) == 0:
         return
@@ -662,9 +628,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     query = update.inline_query.query
     if not query:
@@ -684,9 +648,7 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
 
 # lets user subscribe to receive news
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -728,9 +690,7 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # lets user unsubscribe
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
+    await register_user(update.effective_chat.id)
 
     sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
     if not sleeping:
@@ -755,10 +715,7 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # stock message for unknown commands
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_chat.id not in search_data:
-        reset_search(update.effective_chat.id)
-        updater.add_id(update.effective_chat.id)
-
+    await register_user(update.effective_chat.id)
     await update.message.reply_text('Command not found.')
 
 
@@ -824,7 +781,8 @@ def run() -> None:
 
     updater.set_bot(application.bot)
     updater.set_ids(list(search_data.keys()))
-    updater.set_lock(state_lock)
+    updater.set_sleep_lock(state_lock)
+    updater.set_ids_lock(updater_ids_lock)
     news_scheduler = mythreads.NewsScheduler(application.bot, subLock, newsLock)
     news_fetcher = mythreads.NewsFetcher(newsLock)
     updater.daemon = True

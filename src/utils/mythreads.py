@@ -69,12 +69,13 @@ class NewsFetcher(threading.Thread):
 
 class ArchiveUpdater(threading.Thread):
 
-    def __init__(self, bot=None, ids=None , lock=None):
+    def __init__(self, bot=None, ids=None, sleep_lock=None, ids_lock=None):
         super().__init__()
         self._bot = bot
         self._ids = ids
         self._sleeping = False
-        self._sleep_lock = lock
+        self._sleep_lock = sleep_lock
+        self._ids_lock = ids_lock
 
     def set_bot(self, bot):
         self._bot = bot
@@ -82,11 +83,19 @@ class ArchiveUpdater(threading.Thread):
     def set_ids(self, ids):
         self._ids = ids
 
-    def set_lock(self, lock):
+    def get_ids(self):
+        with self._ids_lock:
+            return self._ids
+
+    def set_sleep_lock(self, lock):
         self._sleep_lock = lock
 
+    def set_ids_lock(self, lock):
+        self._ids_lock = lock
+
     def add_id(self, id: int):
-        self._ids.append(id)
+        with self._ids_lock:
+            self._ids.append(id)
 
     def is_sleeping(self):
         with self._sleep_lock:
@@ -96,18 +105,21 @@ class ArchiveUpdater(threading.Thread):
         with self._sleep_lock:
             self._sleeping = b
 
-    # TODO la lettura degli id non penso sia thread-safe
     def run(self):
         TapClient.load_fields()
         while True:
-            for chat_id in self._ids:
+            ids = self.get_ids()
+            for chat_id in ids:
                 LOOP.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=chat_id,
                     text='We\'re currently updating the database, all commands are unavailable. We\'ll be back in a '
                          'moment.'
                 ))
+
             TapClient.update()
-            for chat_id in self._ids:
+
+            ids = self.get_ids()
+            for chat_id in ids:
                 LOOP.call_soon_threadsafe(asyncio.create_task, self._bot.send_message(
                     chat_id=chat_id,
                     text='We\'ve updated the database, all commands are now available.'

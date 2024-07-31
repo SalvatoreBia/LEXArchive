@@ -16,9 +16,7 @@ class BlockingQueue:
                 self.put_cond.wait()
 
             self.q.append(val)
-
-            if len(self.q) == self.size:
-                self.get_cond.notify_all()
+            self.get_cond.notify_all()
 
     def get(self):
         with self.lock:
@@ -26,8 +24,6 @@ class BlockingQueue:
                 self.get_cond.wait()
 
             val = self.q.popleft()
-
-            if len(self.q) == self.size - 1:
-                self.put_cond.notify_all()
+            self.put_cond.notify_all()
 
             return val
