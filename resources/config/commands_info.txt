@@ -12,7 +12,7 @@ random:??????
 near:Returns the 3 (if available) nearest planets to the earth, measuring the distance in parsecs. *NOTE*: 1 parsec is 3,086*10^16 meters.
 far:Returns the 3 (if available) farthest planets to the earth, measuring the distance in parsecs. *NOTE*: 1 parsec is 3,086*10^16 meters.
 hab:Returns an habitability index estimated calculating common factors like habitable zone, gravity, and so on. You can use the option *-m* if you want to calculate on multiple records (for each research group). *NOTE*: to use this command properly, you need to enter the entire planet name, whitespaces and lowercase allowed.
-sub:Subscribe for daily updates at a specific time. If you're subscribed and you want to change the time, just run the command again with the new one. Example: /sub 08:30 to receive updates every day at 8:30 AM.
+sub:Subscribe for daily updates at a specific time. If you're subscribed and you want to change the time, just run the command again with the new one. Example: /sub 08:30 to receive updates every day at 08:30.
 unsub:Unsubscribe from daily updates.
 report:Submit a message to report any problems using the bot. Example: /report The command /count is not working properly.
 shwz:Displays the schwarzschild radius of a celestial body: This is the size a star or planet would have to shrink to become a black hole. If you squash it smaller than this radius, it turns into a black hole.

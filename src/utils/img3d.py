@@ -1,6 +1,7 @@
 import subprocess
 import os
 import math
+import asyncio
 
 
 STAR_FILE = 'resources/blender/star_script.txt'
@@ -36,34 +37,33 @@ def albedo(eqt, teff, srad, smax):
     return 1 - (eqt / (teff * math.sqrt((srad * SOLAR_RAD) / (2 * (smax * AU_TO_KM))))) ** 0.25
 
 
-def run_blender_star_script(chat, data):
+async def run_blender_star_script(chat, data):
     color = get_star_color_rgba(data['st_spectype'])
     command = f'/opt/blender/blender -b -P {STAR_FILE} -- {color} -- {chat}'
-    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
+    shell = await asyncio.create_subprocess_shell(command, cwd=WORKING_DIRECTORY, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stdin, stderr = await shell.communicate()
     print(stderr)
 
 
-def run_blender_planet_script(chat, data):
+async def run_blender_planet_script(chat, data):
     if data['pl_rade'] <= 2 and data['pl_bmasse'] <= 10:
-        run_rocky_planet_script(chat, data)
+        await run_rocky_planet_script(chat, data)
     else:
-        run_gassy_planet_script(chat, data)
+        await run_gassy_planet_script(chat, data)
 
 
-def run_rocky_planet_script(chat, data):
+async def run_rocky_planet_script(chat, data):
     command = f'/opt/blender/blender -b -P {ROCKY_FILE} -- {chat}'
-    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
+    shell = await asyncio.create_subprocess_shell(command, cwd=WORKING_DIRECTORY, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stdin, stderr = await shell.communicate()
     print(stderr)
 
 
-def run_gassy_planet_script(chat, data):
+async def run_gassy_planet_script(chat, data):
     command = f'/opt/blender/blender -b -P {GASSY_FILE} -- {chat}'
-    shell = subprocess.Popen(command, shell=True, cwd=WORKING_DIRECTORY, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdin, stderr = shell.communicate(input=b'python\njava\nc++\npython\n')
+    shell = await asyncio.create_subprocess_shell(command, cwd=WORKING_DIRECTORY, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stdin, stderr = await shell.communicate()
     print(stderr)
-
 
 def delete_render_png(file_id):
     os.remove(f'{IMG_DIR}{file_id}.png')

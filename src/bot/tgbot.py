@@ -5,6 +5,7 @@ import threading
 import uuid
 import re
 import matplotlib.pyplot as plt
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor
 from telegram import (
@@ -36,6 +37,9 @@ logging.basicConfig(level=logging.INFO)
 
 # _____________________________VARIABLES______________________________________
 
+MIN_YEAR = 1900
+MAX_YEAR = datetime.now().year
+
 TOKEN_PATH = 'resources/config/token.txt'
 FIELDS_PATH = 'resources/config/fields.txt'
 SUB_PATH = 'resources/data/subscribers.txt'
@@ -63,7 +67,7 @@ subLock = threading.RLock()
 newsLock = threading.RLock()
 state_lock = threading.RLock()
 updater_ids_lock = threading.RLock()
-executor = ThreadPoolExecutor()
+executor = ThreadPoolExecutor(max_workers=10)
 updater = mythreads.ArchiveUpdater()
 
 MAX_SUBPROCESSES = 5
@@ -81,17 +85,17 @@ def reset_search(id):
     }
 
 
-def read_subs() -> list:
+def read_subs():
     with subLock:
         try:
             with open(SUB_PATH, 'r') as file:
                 return file.readlines()
         except IOError as e:
             print(f'Error reading subscription file: {e}')
-            return []
+            return None
 
 
-def write_subs(subs: list) -> bool:
+def write_subs(subs: list):
     with subLock:
         try:
             with open(SUB_PATH, 'w') as file:
@@ -115,18 +119,35 @@ async def register_user(chat_id):
 
 async def send(update: Update, context: ContextTypes.DEFAULT_TYPE, msg: str, parsing: bool) -> None:
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=update.effective_user.id,
         text=msg,
         parse_mode='Markdown' if parsing else None
     )
 
+async def send_internal_server_error_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await context.bot.send_message(
+        chat_id=update.effective_user.id,
+        text="*Oops!* Something went wrong on our end. We'll work to fix it. Please try again later.",
+        parse_mode='Markdown'
+    )
+
+async def notify_user_if_updating(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
+    if not sleeping:
+        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
+        await send(update, context, msg, False)
+        return True
+    return False
+
+# ____________________________ACTUAL COMMANDS_________________________________
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
     msg = (
         '🌌 *Welcome to LEXArchive!* 🚀\n\n'
-        f'Hello, {update.effective_chat.effective_name}. '
+        f'Hello, {update.effective_user.effective_name}. '
         'Right here you can easily navigate the NASA\'s \'Planetary Systems\' public database, and I am here '
         'to provide you easy access to it with my functionalities. You can use /help to look at the available commands.\n\n'
         'If you\'re new and you don\'t know what kind of data is being managed, you can use /fields to display all of the '
@@ -136,7 +157,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
     msg = (
         "Here are the available commands:\n\n"
@@ -165,7 +186,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
     if len(context.args) == 0:
         await send(update, context, '*Invalid Syntax*: You need to search for one or more commands.', True)
@@ -177,71 +198,69 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await send(update, context, f'*Error*: Command \'{comm}\' not found. Check if the name is correct, if so, it means that there are no more infos about it.', True)
 
 
-# count how many rows are in the database
-async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
-
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
-        return
-
-    rows = db.count('ps')
-    if rows != -1:
-        msg = f'The archive counts *{rows}* records.'
-        await send(update, context, msg, True)
-
-
 # count how many planets were discovered
-async def count_pl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+async def count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    rows = db.count('pscomppars')
-    if rows != -1:
-        msg = f'The archive counts *{rows}* different exoplanets discovered.'
+    if len(context.args) != 0:
+        await send(update, context, '*Invalid Syntax:* this command doesn\'t need arguments to run.', True)
+        return
+
+    is_total_count = True if update.message.text == '/count' else False
+    if is_total_count:
+        rows = db.count('ps')
+    else:
+        rows = db.count('pscomppars')
+
+    if rows is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif rows != -1:
+        msg = f'The archive counts *{rows}* different exoplanets discovered.' if not is_total_count else f'The archive counts *{rows}* records.'
         await send(update, context, msg, True)
 
 
 # count how many planets were discovered in a certain year
 async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) != 1:
+        await send(update, context, '*Invalid Syntax:* You need to specify a year.', True)
         return
 
-    year = int(context.args[0])
-    rows = db.disc_in(year)
+    try:
+        year = int(context.args[0])
+        if year < MIN_YEAR or year > MAX_YEAR:
+            await send(update, context, f'*Value Error:* You should insert a year between _{MIN_YEAR}_ and _{MAX_YEAR}_.', True)
+            return
+    except ValueError:
+        await send(update, context, '*Invalid Syntax:* You need to specify a valid year.', True)
+        return
 
-    if rows != -1:
+    rows = db.disc_in(year)
+    if rows is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif rows != -1:
         msg = f'The archive counts *{rows}* different exoplanets discovered in {year}.'
         await send(update, context, msg, True)
 
 
 # returns a list of planet with buttons to iterate it
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     keyword = None if len(context.args) == 0 else (''.join(context.args)).lower()
-    chat = update.effective_chat.id
+    chat = update.effective_user.id
     if chat in search_data and search_data[chat]['last'] is not None:
         await context.bot.delete_message(
             chat_id=chat,
@@ -252,6 +271,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     st, end = search_data[chat]['start'], search_data[chat]['end']
     rows = db.search_pl(st, end, keyword)
     if rows is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif not rows:
+        await send(update, context, 'No planet has been found.', False)
         return
 
     string = ''
@@ -270,8 +293,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     message = await context.bot.send_message(
         chat_id=chat,
-        text='Available Planets:\n\n' + string if string != '' else 'Ops, there\'s nothing here...',
-        reply_markup=reply_markup if string != '' else None
+        text='Available Planets:\n\n' + string,
+        reply_markup=reply_markup
     )
     search_data[chat]['last'] = message.message_id
     search_data[chat]['searched'] = keyword
@@ -279,12 +302,9 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # button listener for the search command
 async def button_listener(update: Update, context: CallbackContext) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     query = update.callback_query
@@ -305,8 +325,6 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
     search_data[chat]['end'] = end
 
     rows = db.search_pl(st, end, keyword)
-    if rows is None:
-        return
 
     string = ''
     index = st + 1
@@ -323,21 +341,23 @@ async def button_listener(update: Update, context: CallbackContext) -> None:
 
 # returns an html table retrieving some records of a specific planet
 async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax:* You need to specify at least one search string.', True)
         return
 
     keyword = ''.join(context.args).lower()
     rows, exceeds = db.get_pl_by_name(keyword)
 
     if rows is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif not rows:
+        await send(update, context, 'No record has been found.', False)
         return
 
     for i in range(len(rows)):
@@ -350,7 +370,7 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             file.write(string)
 
         await context.bot.send_document(
-            chat_id=update.effective_chat.id,
+            chat_id=update.effective_user.id,
             document=filename
         )
         os.remove(filename)
@@ -358,31 +378,37 @@ async def table(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # plot how a field is distributed
 async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    arg = '' if len(context.args) != 1 else context.args[0]
-    if arg == '' or arg not in plot_supported:
+    if len(context.args) != 1:
+        await send(update, context, '*Invalid Syntax:* you need to specify a criteria.', True)
         return
 
-    values = sorted(db.get_field_values(plot_supported[arg]))
+    criteria = context.args[0]
+    if criteria not in plot_supported:
+        await send(update, context, '*Value Error:* you need to specify a supported criteria (use /info plot to check them).', True)
+        return
+
+    values = sorted(db.get_field_values(plot_supported[criteria]))
     if values is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif not values:
+        await send(update, context, 'There\'s not enough data to plot.', False)
         return
 
     async with pngLock:
         file = 'plot.png'
         plt.plot(values)
-        plt.ylabel(arg)
+        plt.ylabel(criteria)
         plt.savefig(file)
         plt.close()
 
         await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
+            chat_id=update.effective_user.id,
             photo=open(file, 'rb')
         )
 
@@ -391,12 +417,9 @@ async def plot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # returns the list of fields
 async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     string = ''
@@ -407,40 +430,55 @@ async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax:* you need to specify a planet name.', True)
         return
 
     planet = ''.join(context.args).lower()
     coord = db.get_coordinates(planet)
-    if coord == (None, None):
+    if coord is None:
+        await send(update, context, 'No planet has been found.', False)
         return
+    elif coord == -1:
+        await send_internal_server_error_message(update, context)
+        return
+    else:
+        rastr, decstr = coord
+        if rastr is None or decstr is None:
+            await send(update, context, 'There\'s not enough data to locate it.', False)
+            return
 
-    buffer = research.fetch_sky_image(coord)
+    buffer = await research.fetch_sky_image(coord)
     buffer.seek(0)
     await context.bot.send_photo(
-        chat_id=update.effective_chat.id,
+        chat_id=update.effective_user.id,
         photo=buffer.read()
     )
 
 
 async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
+        return
+
+    if len(context.args) != 0:
+        await send(update, context, '*Invalid Syntax:* this command doesn\'t need arguments to run.', True)
         return
 
     planet = db.get_random_planet()
+    if planet is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif not planet:
+        await send(update, context, 'Couldn\'t randomize :(', False)
+        return
+
     keys = (
         fields_['pl_name'],
         fields_['pl_eqt'],
@@ -457,15 +495,13 @@ async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) != 0:
+        await send(update, context, '*Invalid Syntax:* this command doesn\'t need arguments to run.', True)
         return
 
     command_called = update.message.text
@@ -475,6 +511,10 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         top3 = db.get_farthest_planets()
 
     if top3 is None:
+        await send_internal_server_error_message(update, context)
+        return
+    elif not top3:
+        await send(update, context, 'We\'re currently unable to get the data needed. Please try again later.', False)
         return
 
     msg = f'*According to the data, the {'nearest' if command_called == '/near' else 'farthest'} planets are:*\n\n'
@@ -488,15 +528,16 @@ async def distance_endpoint(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # function that returns an image representing the planetary system
 async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    if len(context.args) == 0 or ('-s' in context.args and (context.args.index('-s') != len(context.args) - 1 or context.args.count('-s') > 1)):
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax:* you need to specify a celestial body name.', True)
+        return
+    elif '-s' in context.args and (context.args.index('-s') != len(context.args) - 1 or context.args.count('-s') > 1):
+        await send(update, context, '*Invalid Syntax:* the option should be passed as the last argument.', True)
         return
 
     is_planet = False if context.args[-1] == '-s' else True
@@ -507,37 +548,43 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         args = context.args
     name = ''.join(args).lower()
 
-    celestial_body = db.get_celestial_body_info(name) if is_planet else db.get_celestial_body_info(name, is_planet=False)
+    celestial_body = db.get_celestial_body_info(name, is_planet)
     if celestial_body is not None:
-        await asyncio.get_event_loop().run_in_executor(None, subprocess_queue.put, update.effective_chat.id)
+        await asyncio.get_event_loop().run_in_executor(
+            executor, subprocess_queue.put, update.effective_user.id
+        )
         if is_planet:
-            img3d.run_blender_planet_script(update.effective_chat.id, celestial_body)
+            await img3d.run_blender_planet_script(update.effective_user.id, celestial_body)
         else:
-            img3d.run_blender_star_script(update.effective_chat.id, celestial_body)
+            await img3d.run_blender_star_script(update.effective_user.id, celestial_body)
+    elif celestial_body == -1:
+        await send_internal_server_error_message(update, context)
+        return
     else:
+        await send(update, context, 'Celetial body not found or unable to currently retrieve the data needed.', False)
         return
 
-    await asyncio.get_event_loop().run_in_executor(None, subprocess_queue.get)
+    await asyncio.get_event_loop().run_in_executor(executor, subprocess_queue.get)
 
     await context.bot.send_photo(
-        chat_id=update.effective_chat.id,
-        photo=open(f'{IMG_DIR}{update.effective_chat.id}.png', 'rb'),
-        caption=f'3d representation for the {'planet' if is_planet else 'star'} \"{name}\".'
+        chat_id=update.effective_user.id,
+        photo=open(f'{IMG_DIR}{update.effective_user.id}.png', 'rb'),
+        caption=f'3d representation for the {"planet" if is_planet else "star"} \"{name}\".'
     )
 
-    img3d.delete_render_png(update.effective_chat.id)
+    await asyncio.get_event_loop().run_in_executor(executor, img3d.delete_render_png, update.effective_user.id)
 
 
 async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    if len(context.args) == 0 or ('-m' in context.args and (context.args.index('-m') != len(context.args) - 1 or context.args.count('-m') > 1)):
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax:* you need to specify a planet name.', True)
+        return
+    elif '-m' in context.args and (context.args.index('-m') != len(context.args) - 1 or context.args.count('-m') > 1):
         return
 
     multiple = True if context.args[-1] == '-m' else False
@@ -549,7 +596,10 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     planet = ''.join(args).lower()
     h_info = db.get_habitability_info(planet, multiple)
     if h_info is None:
-        await send(update, context, 'Ops... Nothing found.', False)
+        await send(update, context, 'Planet not found or currently unable to retrieve the data needed.', False)
+        return
+    elif h_info == -1:
+        await send_internal_server_error_message(update, context)
         return
 
     msg = research.calculate_habitability(h_info, multiple)
@@ -564,22 +614,22 @@ async def hab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) == 0:
-        await send(update, context, '*Invalid Syntax*: You need to search for a star name.', True)
+        await send(update, context, '*Invalid Syntax*: You need to specify a star name.', True)
         return
 
     name = ' '.join(context.args).lower()
     data = db.get_habitable_zone_data(''.join(context.args).lower())
     if data is None:
-        await send(update, context, f'Star \'*{name}*\' not found or data needed to conduct the calculations currently unavailable.', True)
+        await send(update, context, f'Star not found or currently unable to retrieve the data needed.', True)
+        return
+    if data == -1:
+        await send_internal_server_error_message(update, context)
         return
 
     rad, teff = data
@@ -589,25 +639,25 @@ async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
     if len(context.args) == 0:
-        await send(update, context, '*Invalid Syntax*: You need to search for a planet or star name.', True)
+        await send(update, context, '*Invalid Syntax*: you need to specify a celestial body name.', True)
         return
 
     name = ' '.join(context.args)
     mass, is_planet = db.mass(''.join(context.args).lower())
-    if mass is None:
+    if mass == -1:
+        await send_internal_server_error_message(update, context)
+        return
+    elif mass is None:
         if is_planet is None:
-            await send(update, context, f'There\'s no planet or star named \'*{name}*\' here.', True)
+            await send(update, context, f'Celestial body not found.', True)
         else:
-            await send(update, context, f'The {'planet' if is_planet else 'star'} \'*{name}*\' was found, but its mass is not available.', True)
+            await send(update, context, f'The celestial body was found, but its mass is not available.', True)
         return
 
     radius = research.calculate_schwarzschild_radius(mass, is_planet)
@@ -615,20 +665,21 @@ async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    if len(context.args) == 0:
+    if len(context.args) < 5:
+        await send(update, context, '*Invalid Syntax:* you need to write a message at least 5 words long.', True)
         return
 
     report_text = ' '.join(context.args)
-    report_logger.info(f"Report received from {update.effective_chat.username} (user_id={update.effective_chat.id}): {report_text}")
-    msg = 'Thanks for the report, it will help us fix the bot and provide a better experience to all users.'
+    report_logger.info(f"Report received from {update.effective_user.username} (user_id={update.effective_user.id}): {report_text}")
+    msg = 'Thanks for the report! it will help us fix the bot and provide a better experience to all users.'
     await send(update, context, msg, False)
 
 
 # inline query to retrieve information about database fields meaning
 async def inline_query(update: Update, context: CallbackContext) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
     query = update.inline_query.query
     if not query:
@@ -648,29 +699,27 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
 
 # lets user subscribe to receive news
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    id = update.effective_chat.id
+    id = update.effective_user.id
     if len(context.args) != 1:
+        await send(update, context, '*Invalid Syntax:* you need to specify a time.', True)
         return
 
     time = context.args[0]
     regex = r'^([0-9]{2})\:([0-9]{2})$'
     match = re.match(regex, time)
     if not (match and (0 <= int(match.group(1)) < 24) and (0 <= int(match.group(2)) < 60)):
-        await context.bot.send_message(
-            chat_id=id,
-            text='Specified time doesn\'t match the required format.'
-        )
+        await send(update, context, '*Value Error:* specified time doesn\'t match the required format.', True)
         return
 
     subs = await asyncio.get_event_loop().run_in_executor(executor, read_subs)
+    if subs is None:
+        await send_internal_server_error_message(update, context)
+        return
 
     already_sub = False
     for i in range(len(subs)):
@@ -682,7 +731,10 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not already_sub:
         subs.append(f'{id}-{time}')
 
-    await asyncio.get_event_loop().run_in_executor(executor, write_subs, subs)
+    write = await asyncio.get_event_loop().run_in_executor(executor, write_subs, subs)
+    if not write:
+        await send_internal_server_error_message(update, context)
+        return
 
     msg = 'Your subscription was processed correctly.'
     await send(update, context, msg, False)
@@ -690,21 +742,28 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # lets user unsubscribe
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
 
-    sleeping = await asyncio.get_event_loop().run_in_executor(executor, current_state)
-    if not sleeping:
-        msg = 'We\'re currently updating the database, all commands are unavailable. We\'ll be back in a moment.'
-        await send(update, context, msg, False)
+    if await notify_user_if_updating(update, context):
         return
 
-    id = update.effective_chat.id
+    if len(context.args) != 0:
+        await send(update, context, '*Invalid Syntax:* this command doesn\'t need arguments to run.', True)
+        return
+
+    id = update.effective_user.id
     subs = await asyncio.get_event_loop().run_in_executor(executor, read_subs)
+    if subs is None:
+        await send_internal_server_error_message(update, context)
+        return
 
     orig_len = len(subs)
     filtered = [sub for sub in subs if sub.strip().split('-')[0] != str(id)]
 
-    await asyncio.get_event_loop().run_in_executor(executor, write_subs, filtered)
+    write = await asyncio.get_event_loop().run_in_executor(executor, write_subs, filtered)
+    if not write:
+        await send_internal_server_error_message(update, context)
+        return
 
     msg = 'Your unsubscription was processed correctly.'
     if len(filtered) == orig_len:
@@ -715,9 +774,32 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # stock message for unknown commands
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_chat.id)
+    await register_user(update.effective_user.id)
+    print(update.effective_chat.id)
+    print(update.effective_user.id)
     await update.message.reply_text('Command not found.')
 
+# __________________________COMMAND HANDLERS__________________________________
+
+# I put these handlers in order to let the user run a command while he executed
+# one of these, since they're the ones that takes a bit much to return a result.
+# asyncio.create_task seems the only solutions to make it possible.
+
+'''
+async def locate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    asyncio.create_task(locate(update, context))
+
+async def show_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    asyncio.create_task(show(update, context))
+
+async def table_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    asyncio.create_task(table(update, context))
+
+async def plot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    asyncio.create_task(plot(update, context))
+'''
+
+# _______________________________BOT SETUP____________________________________
 
 def _read_token() -> str:
     with open(TOKEN_PATH, 'r') as file:
@@ -758,7 +840,7 @@ def run() -> None:
     application.add_handler(CommandHandler('help', help))
     application.add_handler(CommandHandler('info', info))
     application.add_handler(CommandHandler('count', count))
-    application.add_handler(CommandHandler('pcount', count_pl))
+    application.add_handler(CommandHandler('pcount', count))
     application.add_handler(CommandHandler('discin', disc_in))
     application.add_handler(CommandHandler('search', search))
     application.add_handler(CommandHandler('table', table))

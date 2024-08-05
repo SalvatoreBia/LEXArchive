@@ -148,7 +148,7 @@ def count(table: str):
         return res.fetchone()[0] if res else -1
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return -1
+        return None
 
 
 def disc_in(year: int):
@@ -158,7 +158,7 @@ def disc_in(year: int):
         return res.fetchone()[0] if res else -1
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return -1
+        return None
 
 
 def search_pl(start: int, end: int, keyword=None):
@@ -172,7 +172,7 @@ def search_pl(start: int, end: int, keyword=None):
         else:
             query += ' ORDER BY pl_name LIMIT ? OFFSET ?'
             res = db.execute_query(query, [end-start, start])
-        return [row[0] for row in res.fetchall()] if res else None
+        return [row[0] for row in res.fetchall()] if res else []
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
@@ -220,7 +220,7 @@ def get_field_values(keyword: str):
     try:
         query = f'SELECT {keyword} FROM pscomppars WHERE {keyword} != ""'
         res = db.execute_query(query)
-        return [float(row[0]) for row in res.fetchall()] if res else None
+        return [float(row[0]) for row in res.fetchall()] if res else []
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
@@ -230,10 +230,10 @@ def get_coordinates(planet: str):
     try:
         query = f'SELECT rastr, decstr FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?'
         res = db.execute_query(query, [planet])
-        return res.fetchone()
+        return res.fetchone() if res else 0
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None, None
+        return -1
 
 
 def get_random_planet():
@@ -243,7 +243,7 @@ def get_random_planet():
             'FROM PS ORDER BY RANDOM() LIMIT 1'
         )
         res = db.execute_query(query)
-        return res.fetchone() if res else None
+        return res.fetchone() if res else tuple()
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
@@ -260,7 +260,7 @@ def get_nearest_planets():
             'LIMIT 3'
         )
         res = db.execute_query(query)
-        return res.fetchall() if res else None
+        return res.fetchall() if res else tuple()
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
@@ -277,7 +277,7 @@ def get_farthest_planets():
             'LIMIT 3'
         )
         res = db.execute_query(query)
-        return res.fetchall() if res else None
+        return res.fetchall() if res else tuple()
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return None
@@ -320,7 +320,7 @@ def get_celestial_body_info(name: str, is_planet=True):
         return {key: val for key, val in zip(fields, res.fetchone())} if res else None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None
+        return -1
 
 
 def get_habitability_info(planet: str, multiple: bool):
@@ -364,7 +364,7 @@ def get_habitability_info(planet: str, multiple: bool):
 
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None
+        return -1
 
 
 def mass(name: str):
@@ -383,17 +383,14 @@ def mass(name: str):
         return None, None
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None, None
+        return -1
 
 
 def get_habitable_zone_data(name: str):
     try:
         query = 'SELECT st_rad, st_teff FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
         res = db.execute_query(query, [name])
-        if res:
-            return res.fetchone()
-
-        return None, None
+        return res.fetchone() if res else 0
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
-        return None, None
+        return -1

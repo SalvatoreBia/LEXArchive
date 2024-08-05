@@ -1,4 +1,5 @@
 from astropy.coordinates import SkyCoord, get_constellation
+import matplotlib
 import matplotlib.pyplot as plt
 from astropy.wcs import WCS
 from astroquery.skyview import SkyView
@@ -12,8 +13,10 @@ import random
 from bs4 import BeautifulSoup
 import math
 from src.utils import text
+import asyncio
 
 
+matplotlib.use('Agg')
 FILE = 'resources/data/news.txt'
 SOLAR_TEFF = 5778
 UG_CONST = 6.67e-11
@@ -24,7 +27,7 @@ ALBEDO = 0.3
 C = 3e8
 
 
-def fetch_news(keyword='exoplanets news'):
+def fetch_news(keyword='astronomy'):
     url = f'https://www.google.com/search?q={keyword}'
     options = Options()
     options.add_argument('--headless')
@@ -59,16 +62,17 @@ def get_constellation_from_coordinates(coord, convert_to_sky_coord=False):
     return get_constellation(sky_coord)
 
 
-def fetch_sky_image(pair):
-    coord = SkyCoord(ra=pair[0], dec=pair[1], unit=(u.hourangle, u.deg))
-    image_list = SkyView.get_images(position=coord, survey=['DSS'], pixels=750)
+async def fetch_sky_image(pair):
+    coord = SkyCoord(ra=pair[0], dec=pair[1], unit=(u.hourangle, u.deg ))
+    image_list = await asyncio.to_thread(SkyView.get_images, position=coord, survey=['DSS'], pixels=750)
     data = image_list[0][0].data
     wcs = WCS(image_list[0][0].header)
 
+    icrs_coord = coord.transform_to('icrs')
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection=wcs)
     ax.imshow(data, origin='lower', cmap='gray')
-    ax.plot(coord.ra.deg, coord.dec.deg, 'ro', transform=ax.get_transform('world'))
+    ax.plot(icrs_coord.ra.deg, icrs_coord.dec.deg, 'ro', transform=ax.get_transform('world'))
     plt.xlabel('RA (degrees)')
     plt.ylabel('Dec (degrees)')
     plt.grid(color='white', linestyle='--', linewidth=0.5)
