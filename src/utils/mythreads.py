@@ -2,8 +2,8 @@ import threading
 import time
 import asyncio
 import os
-from datetime import datetime
-from src.utils import research, lex_dtypes, img3d
+from datetime import datetime, timezone
+from src.utils import research
 from src.datamanagement.tap import TapClient
 
 LOOP = asyncio.get_event_loop()
@@ -34,7 +34,7 @@ class NewsScheduler(threading.Thread):
     def run(self):
         while True:
             self._read()
-            current_time = datetime.now().strftime('%H:%M')
+            current_time = datetime.now(timezone.utc).strftime('%H:%M')
             to_notify = [chat_id for chat_id in self._subs if self._subs[chat_id] == current_time]
             if len(to_notify) > 0:
                 with self._news_lock:

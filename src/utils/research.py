@@ -19,11 +19,13 @@ import asyncio
 matplotlib.use('Agg')
 FILE = 'resources/data/news.txt'
 SOLAR_TEFF = 5778
+SOLAR_LUMINOSITY = 3.846e26
 UG_CONST = 6.67e-11
 EARTH_MASS = 5.9722e24
 SOLAR_MASS = 1.989e30
 EARTH_RAD = 6371e3
 ALBEDO = 0.3
+STEFAN_BOLTZMANN_CONST = 5.67e-8
 C = 3e8
 
 
@@ -86,8 +88,10 @@ async def fetch_sky_image(pair):
 
 
 def calculate_luminosity(st_rad, st_teff):
-    return (st_rad ** 2) * ((st_teff / SOLAR_TEFF) ** 4)
+    return SOLAR_LUMINOSITY * (st_rad ** 2) * ((st_teff / SOLAR_TEFF) ** 4)
 
+def calculate_eq_temperature(luminosity, orbsmax):
+    return ((luminosity * (1 - ALBEDO)) / (16 * math.pi * (orbsmax ** 2) * STEFAN_BOLTZMANN_CONST)) ** 0.25
 
 def calculate_habitable_zone_edges(luminosity):
     hab_zone_inner = round(math.sqrt(luminosity / 1.1), 2)
@@ -97,17 +101,17 @@ def calculate_habitable_zone_edges(luminosity):
 
 def calculate_habitability(data, multiple):
     if not multiple:
-        return _calculate_habitability_index(data, multiple)
+        return __calculate_habitability_index(data, multiple)
 
     summaries = []
     for planet in data:
-        summary = _calculate_habitability_index(planet, multiple)
+        summary = __calculate_habitability_index(planet, multiple)
         summaries.append(summary)
 
     return summaries
 
 
-def _calculate_habitability_index(data, multiple, threshold=0.5):
+def __calculate_habitability_index(data, multiple, threshold=0.5):
     def pl_gravity(mass, rad):
         return UG_CONST * (mass / rad ** 2)
 
@@ -127,7 +131,7 @@ def _calculate_habitability_index(data, multiple, threshold=0.5):
 
     equilibrium_temperature = data['pl_eqt']
     if equilibrium_temperature is None and luminosity is not None and data['pl_orbsmax'] is not None:
-        equilibrium_temperature = ((luminosity * (1 - ALBEDO)) / (16 * math.pi * (data['pl_orbsmax'] ** 2) * 5.670374419e-8)) ** 0.25
+        equilibrium_temperature = calculate_eq_temperature(luminosity, data['pl_orbsmax'])
 
     if luminosity is not None:
         hab_zone_inner, hab_zone_outer = calculate_habitable_zone_edges(luminosity)

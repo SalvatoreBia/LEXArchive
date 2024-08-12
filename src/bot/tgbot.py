@@ -4,6 +4,7 @@ import os
 import threading
 import uuid
 import re
+import queue
 import matplotlib.pyplot as plt
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -17,7 +18,7 @@ from telegram.ext import (
     filters, CallbackContext, CallbackQueryHandler, InlineQueryHandler
 )
 from src.datamanagement.database import DbManager as db
-from src.utils import text, mythreads, research, img3d, lex_dtypes
+from src.utils import text, mythreads, research, img3d
 
 # _____________________________LOGGING________________________________________
 
@@ -71,10 +72,9 @@ executor = ThreadPoolExecutor(max_workers=10)
 updater = mythreads.ArchiveUpdater()
 
 MAX_SUBPROCESSES = 5
-subprocess_queue = lex_dtypes.BlockingQueue(MAX_SUBPROCESSES)
+subprocess_queue = queue.Queue(maxsize=MAX_SUBPROCESSES)
 
 # _____________________________FUNCTIONS______________________________________
-
 
 def reset_search(id):
     search_data[id] = {
@@ -147,11 +147,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     msg = (
         '🌌 *Welcome to LEXArchive!* 🚀\n\n'
-        f'Hello, {update.effective_user.effective_name}. '
-        'Right here you can easily navigate the NASA\'s \'Planetary Systems\' public database, and I am here '
-        'to provide you easy access to it with my functionalities. You can use /help to look at the available commands.\n\n'
+        f'Hello, *{update.effective_chat.effective_name}*. '
+        'Right here you can easily navigate the NASA Exoplanet Archive *Planetary Systems* and *Planetary Systems Composite Data*'
+        ' tables , and I am here to provide easy access to them with my functionalities. '
+        '\n\nTo get started, you can use /help to look up the available commands.\n\n'
         'If you\'re new and you don\'t know what kind of data is being managed, you can use /fields to display all of the '
         'info each record has, also you can make an inline query about these fields if you don\'t know what do they mean.'
+        '\n\nIf you experience any problems using the bot, please let us know using /report command.'
     )
     await send(update, context, msg, True)
 
@@ -160,9 +162,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await register_user(update.effective_user.id)
 
     msg = (
-        "Here are the available commands:\n\n"
-        "/start - Welcome message\n"
-        "/info <command_name> - Get details about one or more commands and how to use them\n"
+        "General Commands:\n"
+        "/info <command_name(s)> - Get details about one or more commands and how to use them\n"
+        "/report <message> - Submit a message to report any problem using the bot\n\n"
+        "LEXArchive Commands:\n"
         "/count - Count total records in the database\n"
         "/pcount - Count total discovered exoplanets\n"
         "/discin <year> - Count exoplanets discovered in a specific year\n"
@@ -178,9 +181,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/hab <planet_name> <option> - Get an habitability index of a specific planet.\n"
         "/habzone <star_name> - Get infos about a star\'s habitable zone\n"
         "/shwz <name> - Get the schwarzschild radius for a given star or planet\n"
-        "/sub <HH:MM> - Subscribe for daily updates at a specific time\n"
+        "/sub <HH:MM> - Subscribe for daily updates at a specific time (UTC)\n"
         "/unsub - Unsubscribe from daily updates\n"
-        "/report <message> - Submit a message to report any problem using the bot\n"
     )
     await send(update, context, msg, False)
 
@@ -459,6 +461,31 @@ async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id=update.effective_user.id,
         photo=buffer.read()
     )
+
+
+async def constellation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await register_user(update.effective_user.id)
+
+    if await notify_user_if_updating(update, context):
+        return
+
+    if len(context.args) == 0:
+        await send(update, context, '*Invalid Syntax:* you need to specify a celestial body name.', True)
+        return
+
+    name = ''.join(context.args).lower()
+    cst = db.get_constellation_by_celestial_body_name(name)
+    if cst == -1:
+        await send_internal_server_error_message(update, context)
+        return
+    elif cst is None:
+        await send(update, context, 'Celestial body not found.', False)
+        return
+    elif cst[0] is None:
+        await send(update, context, f'Celestial body was found, but currently unable to locate it.', False)
+        return
+
+    await send(update, context, f'The celestial body is located in *{cst[0]}* Constellation.', True)
 
 
 async def rand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -846,6 +873,7 @@ def run() -> None:
     application.add_handler(CommandHandler('table', table))
     application.add_handler(CommandHandler('plot', plot))
     application.add_handler(CommandHandler('fields', fields))
+    application.add_handler(CommandHandler('cst', constellation))
     application.add_handler(CommandHandler('locate', locate))
     application.add_handler(CommandHandler('random', rand))
     application.add_handler(CommandHandler('near', distance_endpoint))

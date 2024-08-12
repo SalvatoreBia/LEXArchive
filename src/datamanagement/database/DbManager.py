@@ -101,7 +101,11 @@ def get_last_date():
 
 def exists(planet: str):
     try:
-        query = 'SELECT EXISTS(SELECT 1 FROM pscomppars WHERE LOWER(REPLACE(pl_name, " ", "")) = ?)'
+        query = (
+            'SELECT EXISTS('
+            'SELECT 1 FROM pscomppars '
+            'WHERE LOWER(REPLACE(pl_name, " ", "")) = ?)'
+        )
         res = db.execute_query(query, [planet])
         return res.fetchone()[0] if res else None
     except sqlite3.Error as e:
@@ -126,19 +130,6 @@ def delete_planet(name: str, ps_only=False):
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return False
-
-
-def custom_query(fields: str, constraints):
-    try:
-        query = f'SELECT {fields} FROM ps'
-        if constraints is not None:
-            query += f' WHERE {constraints}'
-        query += ' LIMIT 200'
-        res = db.execute_query(query)
-        return [row for row in res.fetchall()] if res else None
-    except sqlite3.Error as e:
-        print(f"An error occurred: {e}")
-        return None
 
 
 def count(table: str):
@@ -391,6 +382,20 @@ def get_habitable_zone_data(name: str):
         query = 'SELECT st_rad, st_teff FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
         res = db.execute_query(query, [name])
         return res.fetchone() if res else 0
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return -1
+
+
+def get_constellation_by_celestial_body_name(name: str):
+    try:
+        query = (
+            'SELECT constellation '
+            'FROM pscomppars '
+            'WHERE LOWER(REPLACE(pl_name, " ", "")) = ? OR LOWER(REPLACE(hostname, " ", "")) = ?'
+        )
+        res = db.execute_query(query, [name, name])
+        return res.fetchone() if res else ''
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return -1
