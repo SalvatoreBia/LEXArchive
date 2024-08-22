@@ -39,7 +39,6 @@ logging.basicConfig(level=logging.INFO)
 # _____________________________VARIABLES______________________________________
 
 MIN_YEAR = 1900
-MAX_YEAR = datetime.now().year
 
 TOKEN_PATH = 'resources/config/token.txt'
 FIELDS_PATH = 'resources/config/fields.txt'
@@ -141,7 +140,6 @@ async def notify_user_if_updating(update: Update, context: ContextTypes.DEFAULT_
 
 # ____________________________ACTUAL COMMANDS_________________________________
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await register_user(update.effective_user.id)
 
@@ -173,7 +171,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/table <planet_name> - Get detailed table of a specific planet\n"
         "/plot <field> - Plot distribution of a specific field\n"
         "/fields - List all available fields\n"
-        "/locate <planet_name> - Get photo pointing where the planet is located and the costellation where it resides\n"
+        "/cst <name> - Get constellation of where a celestial body resides"
+        "/locate <planet_name> - Get photo pointing where the planet is located\n"
         "/show <name> <option> - Get 3D image representing a celestial body\n"
         "/random - Test your luck\n"
         "/near - Get the nearest planets to earth\n"
@@ -238,8 +237,9 @@ async def disc_in(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         year = int(context.args[0])
-        if year < MIN_YEAR or year > MAX_YEAR:
-            await send(update, context, f'*Value Error:* You should insert a year between _{MIN_YEAR}_ and _{MAX_YEAR}_.', True)
+        curr_year = datetime.now().year
+        if year < MIN_YEAR or year > curr_year:
+            await send(update, context, f'*Value Error:* You should insert a year between _{MIN_YEAR}_ and _{curr_year}_.', True)
             return
     except ValueError:
         await send(update, context, '*Invalid Syntax:* You need to specify a valid year.', True)
@@ -443,23 +443,26 @@ async def locate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     planet = ''.join(context.args).lower()
     coord = db.get_coordinates(planet)
+    constellation_ = db.get_constellation_by_celestial_body_name(planet)
     if coord is None:
         await send(update, context, 'No planet has been found.', False)
         return
-    elif coord == -1:
+    elif coord == -1 or constellation_ == -1:
         await send_internal_server_error_message(update, context)
         return
     else:
         rastr, decstr = coord
-        if rastr is None or decstr is None:
+        if rastr is None or decstr is None or constellation_ is None:
             await send(update, context, 'There\'s not enough data to locate it.', False)
             return
 
-    buffer = await research.fetch_sky_image(coord)
+    buffer = await research.fetch_sky_image(coord, constellation_[0])
     buffer.seek(0)
     await context.bot.send_photo(
         chat_id=update.effective_user.id,
-        photo=buffer.read()
+        photo=buffer.read(),
+        caption=f'*Right ascension:* {rastr}, *Declination:* {decstr}',
+        parse_mode='Markdown'
     )
 
 
@@ -596,7 +599,7 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_photo(
         chat_id=update.effective_user.id,
         photo=open(f'{IMG_DIR}{update.effective_user.id}.png', 'rb'),
-        caption=f'3d representation for the {"planet" if is_planet else "star"} \"{name}\".'
+        caption=f'3d representation for the {"planet" if is_planet else "star"} \"{' '.join(context.args)}\".'
     )
 
     await asyncio.get_event_loop().run_in_executor(executor, img3d.delete_render_png, update.effective_user.id)
@@ -661,8 +664,12 @@ async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     rad, teff = data
     luminosity = research.calculate_luminosity(rad, teff)
+    if luminosity is None:
+        await send(update, context, f'Star not found or currently unable to retrieve the data needed.', True)
+        return
+
     inner, outer = research.calculate_habitable_zone_edges(luminosity)
-    await send(update, context, f'The habitable zone for the star \'*{name}*\' falls approximately between {inner} and {outer}, measured in Astronomical Units.', True)
+    await send(update, context, f'The habitable zone for the star \'*{name}*\' falls approximately between *{inner}* and *{outer}*, measured in Astronomical Units.', True)
 
 
 async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

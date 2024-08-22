@@ -102,6 +102,7 @@ def update():
             actually_updated = True
 
     # or update the table
+    # TODO ha eliminato tuple???
     else:
         last_write = db.get_last_date()
         query = f'select+distinct+pl_name+from+ps+where+releasedate%3E=\'{last_write}\'+or+rowupdate%3E=\'{last_write}\'&format=csv'

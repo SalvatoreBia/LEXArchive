@@ -21,9 +21,9 @@ class Database:
         self.DB = 'resources/archive/db.sqlite'
         self.conn = None
         self.cursor = None
-        self._setup()
+        self.__setup()
 
-    def _setup(self):
+    def __setup(self):
         self.conn = sqlite3.connect(self.DB, check_same_thread=False)
         self.cursor = self.conn.cursor()
         with open(self.DUMP, 'r') as file:

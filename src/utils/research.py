@@ -19,7 +19,6 @@ import asyncio
 matplotlib.use('Agg')
 FILE = 'resources/data/news.txt'
 SOLAR_TEFF = 5778
-SOLAR_LUMINOSITY = 3.846e26
 UG_CONST = 6.67e-11
 EARTH_MASS = 5.9722e24
 SOLAR_MASS = 1.989e30
@@ -64,7 +63,7 @@ def get_constellation_from_coordinates(coord, convert_to_sky_coord=False):
     return get_constellation(sky_coord)
 
 
-async def fetch_sky_image(pair):
+async def fetch_sky_image(pair, constellation):
     coord = SkyCoord(ra=pair[0], dec=pair[1], unit=(u.hourangle, u.deg ))
     image_list = await asyncio.to_thread(SkyView.get_images, position=coord, survey=['DSS'], pixels=750)
     data = image_list[0][0].data
@@ -78,7 +77,7 @@ async def fetch_sky_image(pair):
     plt.xlabel('RA (degrees)')
     plt.ylabel('Dec (degrees)')
     plt.grid(color='white', linestyle='--', linewidth=0.5)
-    plt.title(f'Constellation: {get_constellation_from_coordinates(coord, convert_to_sky_coord=False)}')
+    plt.title(f'Constellation: {constellation}')
 
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
@@ -88,14 +87,13 @@ async def fetch_sky_image(pair):
 
 
 def calculate_luminosity(st_rad, st_teff):
-    return SOLAR_LUMINOSITY * (st_rad ** 2) * ((st_teff / SOLAR_TEFF) ** 4)
-
-def calculate_eq_temperature(luminosity, orbsmax):
-    return ((luminosity * (1 - ALBEDO)) / (16 * math.pi * (orbsmax ** 2) * STEFAN_BOLTZMANN_CONST)) ** 0.25
+    if st_rad is None or st_teff is None:
+        return None
+    return (st_rad ** 2) * ((st_teff / SOLAR_TEFF) ** 4)
 
 def calculate_habitable_zone_edges(luminosity):
     hab_zone_inner = round(math.sqrt(luminosity / 1.1), 2)
-    hab_zone_outer = round(math.sqrt(luminosity / 0.53), 2)
+    hab_zone_outer = round(math.sqrt(luminosity / 0.35), 2)
     return hab_zone_inner, hab_zone_outer
 
 
@@ -129,10 +127,6 @@ def __calculate_habitability_index(data, multiple, threshold=0.5):
     if data['st_rad'] is not None and data['st_teff'] is not None:
         luminosity = calculate_luminosity(data['st_rad'], data['st_teff'])
 
-    equilibrium_temperature = data['pl_eqt']
-    if equilibrium_temperature is None and luminosity is not None and data['pl_orbsmax'] is not None:
-        equilibrium_temperature = calculate_eq_temperature(luminosity, data['pl_orbsmax'])
-
     if luminosity is not None:
         hab_zone_inner, hab_zone_outer = calculate_habitable_zone_edges(luminosity)
         if data['pl_orbsmax'] is not None and data['pl_orbeccen'] is not None:
@@ -151,11 +145,11 @@ def __calculate_habitability_index(data, multiple, threshold=0.5):
     if data['pl_insol'] is not None:
         conditions['insolation_flux_condition'] = 0.35 <= data['pl_insol'] <= 1.75
 
-    if equilibrium_temperature is not None:
-        conditions['temp_habitability'] = 273 <= equilibrium_temperature <= 373
+    if data['pl_eqt'] is not None:
+        conditions['temp_habitability'] = 273 <= data['pl_eqt'] <= 373
 
     if data['st_spectype'] is not None:
-        conditions['spectral_type_condition'] = 'G' in data['st_spectype'] or 'K' in data['st_spectype']
+        conditions['spectral_type_condition'] = 'F' in data['st_spectype'] or 'G' in data['st_spectype'] or 'K' in data['st_spectype']
 
     valid_conditions = {k: v for k, v in conditions.items() if v is not None}
     habitability_index = sum(valid_conditions.values()) / len(valid_conditions)
