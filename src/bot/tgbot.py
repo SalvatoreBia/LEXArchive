@@ -591,7 +591,7 @@ async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await send_internal_server_error_message(update, context)
         return
     else:
-        await send(update, context, 'Celetial body not found or unable to currently retrieve the data needed.', False)
+        await send(update, context, 'Celestial body not found or unable to currently retrieve the data needed.', False)
         return
 
     await asyncio.get_event_loop().run_in_executor(executor, subprocess_queue.get)
