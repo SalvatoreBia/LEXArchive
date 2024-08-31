@@ -308,7 +308,10 @@ def get_celestial_body_info(name: str, is_planet=True):
             query = f'SELECT {','.join(fields)} FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
 
         res = db.execute_query(query, [name])
-        return {key: val for key, val in zip(fields, res.fetchone())} if res else None
+        if res.fetchone() is None:
+            return None
+
+        return {key: val for key, val in zip(fields, res.fetchone())}
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return -1
