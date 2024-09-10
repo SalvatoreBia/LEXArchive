@@ -20,7 +20,6 @@ color_arg = argv[:split_index]
 file_id = argv[split_index + 1]
 
 SURFACE_COLOR = [float(val) for val in color_arg]
-print(SURFACE_COLOR)
 
 # Clear existing objects
 bpy.ops.object.select_all(action='SELECT')
@@ -42,25 +41,51 @@ mat.use_nodes = True
 nodes = mat.node_tree.nodes
 links = mat.node_tree.links
 
-# Add nodes
+star_ramp = nodes.new(type='ShaderNodeValToRGB')
+corona_ramp = nodes.new(type='ShaderNodeValToRGB')
 noise = nodes.new(type='ShaderNodeTexNoise')
-color_ramp = nodes.new(type='ShaderNodeValToRGB')
+fresnel = nodes.new(type='ShaderNodeFresnel')
+vec = nodes.new(type='ShaderNodeVectorMath')
 bsdf = nodes.get('Principled BSDF')
 
-# Link nodes
-links.new(noise.outputs['Fac'], color_ramp.inputs['Fac'])
-links.new(color_ramp.outputs['Color'], bsdf.inputs['Base Color'])
+links.new(noise.outputs['Fac'], star_ramp.inputs['Fac'])
+links.new(fresnel.outputs['Fac'], corona_ramp.inputs['Fac'])
+links.new(star_ramp.outputs['Color'], vec.inputs[0])
+links.new(corona_ramp.outputs['Color'], vec.inputs[1])
+links.new(vec.outputs[0], bsdf.inputs['Emission Color'])
 
-# Adjusting values for starspots
-noise.inputs['Scale'].default_value = 25
-noise.inputs['Distortion'].default_value = random.randint(900, 1200) / 100
-bsdf.inputs['IOR'].default_value = 1
-bsdf.inputs['Roughness'].default_value = 1
-bsdf.inputs['Metallic'].default_value = 0.5
-color_ramp.color_ramp.elements[0].position = 0.15
-color_ramp.color_ramp.elements[1].color = SURFACE_COLOR
-pin1 = color_ramp.color_ramp.elements.new(position=0.6)
-pin2 = color_ramp.color_ramp.elements.new(position=0.4)
+bsdf.inputs[27].default_value = 10
+star_ramp.color_ramp.elements[1].color = SURFACE_COLOR
+star_ramp.color_ramp.elements[0].position = 0.3
+star_ramp.color_ramp.elements[1].position = 0.85
+noise.inputs['Scale'].default_value = 30
+noise.inputs['Distortion'].default_value = 10
+corona_ramp.color_ramp.elements[1].color = SURFACE_COLOR
+corona_ramp.color_ramp.elements[0].position = 0.3
+corona_ramp.color_ramp.elements[1].position = 0.85
+
+# setting background
+world = bpy.context.scene.world
+world.use_nodes = True
+wnodes = world.node_tree.nodes
+wlinks = world.node_tree.links
+wnodes.clear()
+
+ramp = wnodes.new(type='ShaderNodeValToRGB')
+noise = wnodes.new(type='ShaderNodeTexNoise')
+background = wnodes.new(type='ShaderNodeBackground')
+output = wnodes.new(type='ShaderNodeOutputWorld')
+wlinks.new(noise.outputs['Fac'], ramp.inputs['Fac'])
+wlinks.new(ramp.outputs['Color'], background.inputs['Color'])
+wlinks.new(background.outputs['Background'], output.inputs['Surface'])
+
+noise.inputs['Scale'].default_value = 600
+ramp.color_ramp.elements[0].position = 0.680
+ramp.color_ramp.elements[1].position = 0.850
+
+bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+bpy.context.scene.eevee.use_bloom = True
+bpy.context.scene.eevee.use_ssr = True
 
 # Add a camera and place it in a random point of its orbit around the star
 bpy.ops.object.camera_add()
@@ -79,35 +104,6 @@ camera.rotation_euler = rot_quat.to_euler()
 
 bpy.context.scene.camera = camera
 
-# Add a light source
-bpy.ops.object.light_add(type='POINT')
-light = bpy.context.object
-light.data.energy = 12000
-light.parent = camera
-
-# Setting the outer space background
-world = bpy.context.scene.world
-world.use_nodes = True
-
-wnodes = world.node_tree.nodes
-wlinks = world.node_tree.links
-wnodes.clear()
-
-voronoi = wnodes.new(type='ShaderNodeTexVoronoi')
-ramp = wnodes.new(type='ShaderNodeValToRGB')
-background = wnodes.new(type='ShaderNodeBackground')
-output = wnodes.new(type='ShaderNodeOutputWorld')
-ramp.color_ramp.elements[0].position = 0.15
-ramp.color_ramp.elements[1].position = 0
-
-background.inputs['Strength'].default_value = 5
-voronoi.inputs['Scale'].default_value = 200
-
-wlinks.new(voronoi.outputs['Distance'], ramp.inputs['Fac'])
-wlinks.new(ramp.outputs['Color'], background.inputs['Color'])
-wlinks.new(background.outputs['Background'], output.inputs['Surface'])
-
-# Set the render settings
 output_path = f"/home/salvatore/Scrivania/lexarchive/resources/img/{file_id}.png"
 bpy.context.scene.render.filepath = output_path
 bpy.context.scene.render.image_settings.file_format = 'PNG'

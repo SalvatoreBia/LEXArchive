@@ -54,7 +54,6 @@ class Database:
 db = Database()
 
 
-# TODO da migliorare il ritrovamento di ra e dec
 def insert(table: str, row: list):
     try:
         query = (
@@ -308,10 +307,11 @@ def get_celestial_body_info(name: str, is_planet=True):
             query = f'SELECT {','.join(fields)} FROM pscomppars WHERE LOWER(REPLACE(hostname, " ", "")) = ?'
 
         res = db.execute_query(query, [name])
-        if res.fetchone() is None:
+        row = res.fetchone()
+        if not row:
             return None
 
-        return {key: val for key, val in zip(fields, res.fetchone())}
+        return {key: val for key, val in zip(fields, row)}
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
         return -1

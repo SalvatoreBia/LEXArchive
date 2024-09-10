@@ -78,7 +78,7 @@ def planet_spec_format(planet: dict) -> str:
         if key == 'Planetary Parameter Reference~':
             match = get_href_match(value)
             if match:
-                string += f'*{key}* → [{match.group(2)}]({match.group(1)})\n'
+                string += f'*{key[:-1]}* → [{match.group(2)}]({match.group(1)})\n'
         else:
             string += f'*{key.replace("*", "·")}* → _{value if value else "Empty"}_\n'
 

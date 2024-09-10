@@ -5,15 +5,12 @@ from astropy.wcs import WCS
 from astroquery.skyview import SkyView
 from io import BytesIO
 import astropy.units as u
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.firefox.options import Options
 import random
 from bs4 import BeautifulSoup
 import math
 from src.utils import text
 import asyncio
+from playwright.sync_api import sync_playwright
 
 
 matplotlib.use('Agg')
@@ -26,27 +23,28 @@ EARTH_RAD = 6371e3
 ALBEDO = 0.3
 STEFAN_BOLTZMANN_CONST = 5.67e-8
 C = 3e8
+user_agent = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/94.0'
 
 
 def fetch_news(keyword='astronomy'):
     url = f'https://www.google.com/search?q={keyword}'
-    options = Options()
-    options.add_argument('--headless')
-    service = Service('/snap/bin/geckodriver')
-    driver = webdriver.Firefox(service=service, options=options)
-    driver.get(url)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(user_agent=user_agent)
+        page = context.new_page()
 
-    driver.implicitly_wait(20)
-    driver.find_element(By.XPATH, '//div[text()=\'Accetta tutto\']').click()
-    driver.find_element(By.XPATH, '//div[text()=\'Notizie\']').click()
+        page.goto(url)
+        page.click('button:has-text("Accetta tutto")')
+        page.wait_for_load_state('networkidle')
+        page.click('a:has-text("Notizie")')
+        page.wait_for_load_state('networkidle')
 
-    page = driver.page_source
-    driver.quit()
+        page_source = page.content()
+        browser.close()
 
-    soup = BeautifulSoup(page, 'html.parser')
-    a = soup.find_all('a', class_='WlydOe')
-
-    return ','.join([link.get('href') for link in a]) if len(a) > 0 else ''
+        soup = BeautifulSoup(page_source, 'html.parser')
+        a = soup.find_all('a', class_='WlydOe')
+        return ','.join([link.get('href') for link in a]) if len(a) > 0 else ''
 
 
 def get_rand_news():

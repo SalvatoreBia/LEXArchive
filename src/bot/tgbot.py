@@ -426,7 +426,8 @@ async def fields(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     string = ''
     for key in fields_:
-        string += f'_{fields_[key]}_\n'
+        temp = fields_[key] if fields_[key][-1] != '~' else fields_[key][:-1]
+        string += f'_{temp}_\n'
 
     await send(update, context, string, True)
 
