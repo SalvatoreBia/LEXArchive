@@ -107,7 +107,7 @@ def calculate_habitability(data, multiple):
     return summaries
 
 
-def __calculate_habitability_index(data, multiple, threshold=0.5):
+def __calculate_habitability_index(data, multiple, threshold=0.35):
     def pl_gravity(mass, rad):
         return UG_CONST * (mass / rad ** 2)
 
@@ -116,8 +116,6 @@ def __calculate_habitability_index(data, multiple, threshold=0.5):
         'outer_zone_condition': False,
         'gravity_condition': False,
         'temperature_condition': False,
-        'insolation_flux_condition': False,
-        'temp_habitability': False,
         'spectral_type_condition': False
     }
 
@@ -135,16 +133,10 @@ def __calculate_habitability_index(data, multiple, threshold=0.5):
 
     if data['pl_bmasse'] is not None and data['pl_rade'] is not None:
         gravity = pl_gravity(data['pl_bmasse'] * EARTH_MASS, data['pl_rade'] * EARTH_RAD)
-        conditions['gravity_condition'] = 0.9 <= round(gravity, 1) / 9.8 <= 1.3
+        conditions['gravity_condition'] = 0.4 <= round(gravity, 1) / 9.8 <= 3
 
     if data['st_teff'] is not None:
         conditions['temperature_condition'] = 3900 <= data['st_teff'] <= 7100
-
-    if data['pl_insol'] is not None:
-        conditions['insolation_flux_condition'] = 0.35 <= data['pl_insol'] <= 1.75
-
-    if data['pl_eqt'] is not None:
-        conditions['temp_habitability'] = 273 <= data['pl_eqt'] <= 373
 
     if data['st_spectype'] is not None:
         conditions['spectral_type_condition'] = 'F' in data['st_spectype'] or 'G' in data['st_spectype'] or 'K' in data['st_spectype']
@@ -171,20 +163,17 @@ def __calculate_habitability_index(data, multiple, threshold=0.5):
         f"- *Outer Habitable Zone*: {'Met' if conditions['outer_zone_condition'] else 'Not Met'}\n"
         f"- *Gravity Condition*: {'Met' if conditions['gravity_condition'] else 'Not Met'}\n"
         f"- *Stellar Temperature Condition*: {'Met' if conditions['temperature_condition'] else 'Not Met'}\n"
-        f"- *Insolation Flux Condition*: {'Met' if conditions['insolation_flux_condition'] else 'Not Met'}\n"
-        f"- *Equilibrium Temperature Condition*: {'Met' if conditions['temp_habitability'] else 'Not Met'}\n"
         f"- *Spectral Type Condition*: {'Met' if conditions['spectral_type_condition'] else 'Not Met'}\n\n"
         f"{'Here are the reasons why the planet does not meet the habitability criteria:' if not is_habitable else ''}\n"
         f"{'' if conditions['inner_zone_condition'] else '- The planet\'s orbit does not fall within the inner habitable zone.\n'}"
         f"{'' if conditions['outer_zone_condition'] else '- The planet\'s orbit does not fall within the outer habitable zone.\n'}"
         f"{'' if conditions['gravity_condition'] else '- The planet\'s gravity is not within the acceptable range for habitability.\n'}"
         f"{'' if conditions['temperature_condition'] else '- The star\'s temperature is not within the suitable range for habitability.\n'}"
-        f"{'' if conditions['insolation_flux_condition'] else '- The planet receives insolation flux outside the habitable range.\n'}"
-        f"{'' if conditions['temp_habitability'] else '- The planet\'s equilibrium temperature is not within the habitable range.\n'}"
         f"{'' if conditions['spectral_type_condition'] else '- The star\'s spectral type is not suitable for habitability.'}"
     )
 
     return summary
+
 
 
 def calculate_schwarzschild_radius(mass, is_planet):

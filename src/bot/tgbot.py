@@ -673,32 +673,6 @@ async def hab_zone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await send(update, context, f'The habitable zone for the star \'*{name}*\' falls approximately between *{inner}* and *{outer}*, measured in Astronomical Units.', True)
 
 
-async def schwarzschild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await register_user(update.effective_user.id)
-
-    if await notify_user_if_updating(update, context):
-        return
-
-    if len(context.args) == 0:
-        await send(update, context, '*Invalid Syntax*: you need to specify a celestial body name.', True)
-        return
-
-    name = ' '.join(context.args)
-    mass, is_planet = db.mass(''.join(context.args).lower())
-    if mass == -1:
-        await send_internal_server_error_message(update, context)
-        return
-    elif mass is None:
-        if is_planet is None:
-            await send(update, context, f'Celestial body not found.', True)
-        else:
-            await send(update, context, f'The celestial body was found, but its mass is not available.', True)
-        return
-
-    radius = research.calculate_schwarzschild_radius(mass, is_planet)
-    await send(update, context, f'The schwarzschild radius for the {'planet' if is_planet else 'star'} \'*{name}*\' is *{radius}* meters.', True)
-
-
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await register_user(update.effective_user.id)
 
@@ -889,7 +863,6 @@ def run() -> None:
     application.add_handler(CommandHandler('show', show))
     application.add_handler(CommandHandler('hab', hab))
     application.add_handler(CommandHandler('habzone', hab_zone))
-    application.add_handler(CommandHandler('shwz', schwarzschild))
     application.add_handler(CommandHandler('report', report))
     application.add_handler(CommandHandler('sub', subscribe))
     application.add_handler(CommandHandler('unsub', unsubscribe))

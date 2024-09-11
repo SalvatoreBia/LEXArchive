@@ -32,10 +32,6 @@ def get_star_color_rgba(string):
     return spec_types['G']
 
 
-def albedo(eqt, teff, srad, smax):
-    return 1 - (eqt / (teff * math.sqrt((srad * SOLAR_RAD) / (2 * (smax * AU_TO_KM))))) ** 0.25
-
-
 async def run_blender_star_script(chat, data):
     color = get_star_color_rgba(data['st_spectype'])
     command = f'/opt/blender/blender -b -P {STAR_FILE} -- {color} -- {chat}'
