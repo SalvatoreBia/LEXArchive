@@ -139,7 +139,7 @@ def __calculate_habitability_index(data, multiple, threshold=0.35):
         conditions['temperature_condition'] = 3900 <= data['st_teff'] <= 7100
 
     if data['st_spectype'] is not None:
-        conditions['spectral_type_condition'] = 'F' in data['st_spectype'] or 'G' in data['st_spectype'] or 'K' in data['st_spectype']
+        conditions['spectral_type_condition'] = 'G' in data['st_spectype'] or 'K' in data['st_spectype']
 
     valid_conditions = {k: v for k, v in conditions.items() if v is not None}
     habitability_index = sum(valid_conditions.values()) / len(valid_conditions)
