@@ -148,7 +148,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f'Hello, *{update.effective_chat.effective_name}*. '
         'Right here you can easily navigate the NASA Exoplanet Archive *Planetary Systems* and *Planetary Systems Composite Data*'
         ' tables , and I am here to provide easy access to them with my functionalities. '
-        '\n\nTo get started, you can use /help to look up the available commands.\n\n'
+        '\n\nTo get started, you can use /help to look up the available commands. Running "/info info" command'
+        ' is also recommended to gain better understading on how to know more details about other commands.\n\n'
         'If you\'re new and you don\'t know what kind of data is being managed, you can use /fields to display all of the '
         'info each record has, also you can make an inline query about these fields if you don\'t know what do they mean.'
         '\n\nIf you experience any problems using the bot, please let us know using /report command.'
@@ -179,7 +180,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/far - Get the farthest planets to earth\n"
         "/hab <planet_name> <option> - Get an habitability index of a specific planet.\n"
         "/habzone <star_name> - Get infos about a star\'s habitable zone\n"
-        "/shwz <name> - Get the schwarzschild radius for a given star or planet\n"
         "/sub <HH:MM> - Subscribe for daily updates at a specific time (UTC)\n"
         "/unsub - Unsubscribe from daily updates\n"
     )

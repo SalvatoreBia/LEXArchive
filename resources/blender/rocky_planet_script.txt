@@ -69,27 +69,24 @@ light = bpy.context.object
 light.data.energy = 12000
 light.parent = camera
 
-# Setting the outer space background
+# setting background
 world = bpy.context.scene.world
 world.use_nodes = True
-
 wnodes = world.node_tree.nodes
 wlinks = world.node_tree.links
 wnodes.clear()
 
-voronoi = wnodes.new(type='ShaderNodeTexVoronoi')
 ramp = wnodes.new(type='ShaderNodeValToRGB')
+noise = wnodes.new(type='ShaderNodeTexNoise')
 background = wnodes.new(type='ShaderNodeBackground')
 output = wnodes.new(type='ShaderNodeOutputWorld')
-ramp.color_ramp.elements[0].position = 0.15
-ramp.color_ramp.elements[1].position = 0
-
-background.inputs['Strength'].default_value = 5
-voronoi.inputs['Scale'].default_value = 200
-
-wlinks.new(voronoi.outputs['Distance'], ramp.inputs['Fac'])
+wlinks.new(noise.outputs['Fac'], ramp.inputs['Fac'])
 wlinks.new(ramp.outputs['Color'], background.inputs['Color'])
 wlinks.new(background.outputs['Background'], output.inputs['Surface'])
+
+noise.inputs['Scale'].default_value = 600
+ramp.color_ramp.elements[0].position = 0.680
+ramp.color_ramp.elements[1].position = 0.850
 
 # Set the render settings
 output_path = f"/home/salvatore/Scrivania/lexarchive/resources/img/{file_id}.png"
